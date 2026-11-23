@@ -40,6 +40,10 @@ The tray menu shows, hides, or quits AgentWhisker. **Idle animation** runs conti
 
 </details>
 
+## Windows sign-in and notifications
+
+In the Windows v0.1.6 candidate, open Kitsu’s settings to start AgentWhisker at sign-in or show quiet notifications when a task needs a reply or fails. Both switches start off. After moving the portable folder, enable sign-in again from its new location. If Agent Console starts the same copy, its companion takes over from the sign-in instance.
+
 ## Languages
 
 AgentWhisker is available in English, Spanish, Simplified Chinese, and Hindi. It follows your system language by default and uses English when no supported system language is available. Choose **Language** in the companion settings to override it. Task titles and messages from connected sources stay in their original language.

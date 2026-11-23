@@ -2,6 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
 electron_1.contextBridge.exposeInMainWorld("codexPets", {
+    getLoginSetting: () => electron_1.ipcRenderer.invoke("login:get"),
+    setLoginSetting: value => electron_1.ipcRenderer.invoke("login:set", value),
     requestLimitsRefresh: () => electron_1.ipcRenderer.invoke("limits:refresh"),
     readLimits: () => electron_1.ipcRenderer.invoke("limits:read"),
     setLimitsOpen: value => electron_1.ipcRenderer.invoke("limits:set-open", value),

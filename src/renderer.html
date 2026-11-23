@@ -84,6 +84,11 @@
         </div>
         <label class="setting-pair" for="taskLabelToggle"><span data-t="taskLabel"></span> <input id="taskLabelToggle" type="checkbox" role="switch" checked></label>
         <label class="setting-pair bubble-setting" for="busyBubbleToggle"><span data-t="taskBubble"></span> <input id="busyBubbleToggle" type="checkbox" role="switch" checked></label>
+        <div id="windowsSettings" hidden>
+          <label class="setting-pair"><span data-t="launchAtLogin"></span> <input id="loginToggle" type="checkbox" role="switch"></label>
+          <label class="setting-pair"><span data-t="notifyOnAttention"></span> <input id="attentionToggle" type="checkbox" role="switch"></label>
+          <div id="dailySaveError" role="status" hidden data-t="dailySaveError"></div>
+        </div>
         <div class="language-setting" id="limitsPreferenceRow" hidden>
           <label for="limitsPreference" data-t="limitsButtonSetting"></label>
           <select id="limitsPreference">

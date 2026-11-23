@@ -51,6 +51,10 @@ const { createOpenCodeLimits } = require("./main/providers/opencode-limits.cjs")
 const { listCharacters, importCharacter } = require("./main/character-library.cjs");
 const limitsWindows = new WeakMap();
 let appTray = null;
+const {loginSetting, coordinateStartup} = require("./main/windows-startup.cjs");
+const taskAlerts = require("./main/task-alerts.cjs").createTaskAlerts();
+let alertsEnabled = false;
+let alertRevision = 0;
 function parseArgs(argv) {
     const args = {
         pet: null,
@@ -116,6 +120,7 @@ async function createWindow(args) {
     const codexHome = getCodexHome(args);
     const settingsPath = path.join(electron_1.app.getPath("userData"), "settings.json");
     const settings = await (0, settings_1.readSettings)(settingsPath);
+    alertsEnabled = process.platform === "win32" && settings.notifyOnAttention;
     useLocale(settings.locale);
     const pets = await listCharacters();
     if (args.validatePet) {
@@ -335,12 +340,23 @@ function registerIpcHandlers(startupArgs = {}) {
     });
     electron_1.ipcMain.handle("providers:list", async () => (0, providers_1.listProviders)());
     const {projectFolder} = require("./main/project-folder.cjs");
+    electron_1.ipcMain.handle("login:get", () => loginSetting(electron_1.app));
+    electron_1.ipcMain.handle("login:set", (_event, value) => loginSetting(electron_1.app, value));
     electron_1.ipcMain.handle("activity:read", async (_event, options) => {
+        const revision = alertRevision;
         const activity = await (0, activity_1.readActivity)(options);
         if (activity.source === "codex") {
             await Promise.all(activity.sessions.map(async session => {
                 session.canOpenFolder = Boolean(await projectFolder(session));
             }));
+        }
+        if (alertsEnabled && appTray && revision === alertRevision) {
+            const isManaged = Boolean(process.env.AGENT_CONSOLE_PET_PYTHON && startupArgs.statusFile &&
+                options.provider === "json-status" && options.statusFile === startupArgs.statusFile);
+            const key = JSON.stringify([activity.source, options.codexHome, activity.statusFile]);
+            const changes = taskAlerts.observe(key, activity, isManaged);
+            if (changes.length) appTray.displayBalloon({title:"AgentWhisker", noSound:true, respectQuietTime:true,
+                content:changes.map(item => t(item.state) + " — " + (item.title || "AgentWhisker")).join("\n")});
         }
         return activity;
     });
@@ -362,6 +378,11 @@ function registerIpcHandlers(startupArgs = {}) {
     electron_1.ipcMain.handle("settings:update", async (event, patch) => {
         if (patch && Object.hasOwn(patch, "provider")) limitsForEvent(event).setSource((0, providers_1.normalizeProvider)(patch.provider));
         const saved = await (0, settings_1.updateSettings)(path.join(electron_1.app.getPath("userData"), "settings.json"), patch);
+        if (patch && ["notifyOnAttention", "provider", "statusFile"].some(key => Object.hasOwn(patch, key))) {
+            alertsEnabled = process.platform === "win32" && saved.notifyOnAttention;
+            alertRevision++;
+            taskAlerts.reset();
+        }
         if (patch && Object.hasOwn(patch, "locale")) {
             useLocale(saved.locale);
             updateTrayMenu(electron_1.BrowserWindow.fromWebContents(event.sender));
@@ -405,7 +426,15 @@ if (process.versions.electron && process.type === "browser") {
         electron_1.app.setPath("userData", path.resolve(startupArgs.userDataDir));
     if (!electron_1.app.requestSingleInstanceLock()) { electron_1.app.quit(); } else {
     registerIpcHandlers(startupArgs);
-    electron_1.app.whenReady().then(() => createWindow(startupArgs));
+    electron_1.app.whenReady().then(async () => {
+        const role = process.env.AGENT_CONSOLE_PET_PYTHON && startupArgs.statusFile ? "console" :
+            process.argv.includes("--login-start") ? "login" : null;
+        const show = await coordinateStartup(electron_1.app, role, () => {
+            for (const window of electron_1.BrowserWindow.getAllWindows()) window.hide();
+        });
+        if (show) await createWindow(startupArgs);
+        else electron_1.app.quit();
+    }).catch(error => { console.error(error); electron_1.app.exit(1); });
     electron_1.app.on("window-all-closed", () => electron_1.app.quit());
     }
 }

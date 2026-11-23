@@ -2,6 +2,7 @@
 
 // English, Spanish, Simplified Chinese, Hindi.
 const siteCopy = {
+  dailyPreview: ["Coming in v0.1.6: optional start at sign-in and quiet alerts for tasks that need a reply or fail.","Próximamente en v0.1.6: inicio opcional al entrar en Windows y avisos silenciosos si una tarea necesita respuesta o falla.","v0.1.6 即将支持登录时自动启动，并在任务需要回复或失败时静默通知。两项功能均可自行开启。","v0.1.6 में आप Windows साइन-इन पर ऐप शुरू कर सकेंगे और जवाब की ज़रूरत या कार्य विफल होने पर शांत सूचनाएँ पा सकेंगे।"],
   title: ["AgentWhisker · An animated desktop companion","AgentWhisker · Una compañera animada de escritorio","AgentWhisker · 动画桌面伙伴","AgentWhisker · ऐनिमेटेड डेस्कटॉप साथी"],
   description: ["See what your coding agent is doing through Kitsu’s animations.","Descubre qué hace tu agente de programación con las animaciones de Kitsu.","通过 Kitsu 的动画了解编程智能体的状态。","Kitsu के ऐनिमेशन से जानें कि आपका कोडिंग एजेंट क्या कर रहा है।"],
   mainNav: ["Main navigation","Navegación principal","主导航","मुख्य नेविगेशन"],

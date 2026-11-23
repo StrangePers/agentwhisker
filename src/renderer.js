@@ -815,6 +815,12 @@ async function boot() {
   savedIdleAnimationMode = idleAnimationMode;
   idleAnimationSelect.disabled = false;
   showBusyBubble = settings.showBusyBubble !== false;
+  const loginEnabled = await window.codexPets.getLoginSetting().catch(() => null);
+  if (typeof loginEnabled === "boolean") {
+    document.getElementById("windowsSettings").hidden = false;
+    document.getElementById("loginToggle").checked = loginEnabled;
+    document.getElementById("attentionToggle").checked = settings.notifyOnAttention === true;
+  }
   updateBusyBubble();
   showTaskLabel = settings.showTaskLabel !== false;
   applyTaskLabel(showTaskLabel);
@@ -1864,6 +1870,24 @@ window.codexPets.onConsoleCommand(command => {
     setPopoverOpen(true);
   }
 });
+for (const [id, save] of [
+  ["loginToggle", value => window.codexPets.setLoginSetting(value)],
+  ["attentionToggle", async value => (await window.codexPets.updateSettings({notifyOnAttention:value})).notifyOnAttention],
+]) {
+  document.getElementById(id).addEventListener("change", async ({target}) => {
+    const requested = target.checked;
+    const error = document.getElementById("dailySaveError");
+    target.disabled = true;
+    error.hidden = true;
+    try {
+      target.checked = await save(requested);
+      error.hidden = target.checked === requested;
+    } catch {
+      target.checked = !requested;
+      error.hidden = false;
+    } finally { target.disabled = false; }
+  });
+}
 document.getElementById("busyBubbleToggle").addEventListener("change", async event => {
   try {
     const saved = await window.codexPets.updateSettings({showBusyBubble:event.target.checked});

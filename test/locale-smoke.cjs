@@ -57,6 +57,8 @@ async function main() {
       await page.locator("#languageSelect").selectOption(code);
       await awaitLocale(page, code);
       assert.equal(await page.locator('label[for="languageSelect"]').textContent(), t("language"));
+      for (const key of ["launchAtLogin","notifyOnAttention"])
+        assert.equal(await page.locator('[data-t="' + key + '"]').textContent(), t(key));
       assert.equal(await page.locator('label[for="idleAnimationMode"]').textContent(), t("idleAnimation"));
       assert.equal(await page.locator("#idleAnimationMode").inputValue(), "events-only");
       assert.equal(await page.locator("#petSizeInput").inputValue(), "360");
