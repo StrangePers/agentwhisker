@@ -48,6 +48,7 @@ const os = __importStar(require("node:os"));
 const path = __importStar(require("node:path"));
 const codex_1 = require("./codex");
 const shared_1 = require("./shared");
+const { connectOpenCodeService } = require("./opencode-service.cjs");
 async function readOpenCodeActivity(options = {}) {
     const now = options.now || new Date();
     const runner = options.runner || runOpenCodeSessionList;
@@ -78,19 +79,11 @@ async function runOpenCodeSessionList(options = {}) {
 }
 
 async function readOpenCodeServiceSessions(options, limit) {
-    const stateHome = process.env.XDG_STATE_HOME || path.join(os.homedir(), ".local", "state");
-    const file = options.serviceFile || path.join(stateHome, "opencode", "service.json");
     try {
-        const service = JSON.parse(await fs.readFile(file, "utf8"));
-        const url = new URL(service.url);
-        if (url.protocol !== "http:" || !["127.0.0.1", "[::1]"].includes(url.hostname) ||
-            !url.port || url.username || url.password || typeof service.password !== "string") return null;
-        const headers = { Authorization: "Basic " + Buffer.from("opencode:" + service.password).toString("base64") };
+        const request = await connectOpenCodeService(options.serviceFile || undefined);
         const get = async endpoint => {
             try {
-                const response = await fetch(new URL(endpoint, url), {
-                    headers, redirect: "error", signal: AbortSignal.timeout(1500),
-                });
+                const response = await request(endpoint);
                 return response.ok ? (await response.json()).data : null;
             } catch { return null; }
         };

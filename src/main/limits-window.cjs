@@ -2,12 +2,14 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const PANEL_WIDTH = 304;
+const SETTINGS_VIEWPORT_HEIGHT = 608;
 const MAX_SNAPSHOT_BYTES = 128 * 1024;
 
 async function readLimitsSnapshot(userData) {
+    const filename = path.join(userData, 'limits.json');
     let file;
     try {
-        file = await fs.open(path.join(userData, 'limits.json'), 'r');
+        file = await fs.open(filename, 'r');
         const buffer = Buffer.alloc(MAX_SNAPSHOT_BYTES + 1);
         let size = 0;
         while (size < buffer.length) {
@@ -23,7 +25,7 @@ async function readLimitsSnapshot(userData) {
 }
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
-function calculateLayout(base, open, area, petSize = 112) {
+function calculateLayout(base, open, area, petSize = 112, settingsOpen = false) {
     const baseWidth = Math.min(base.width, area.width);
     const height = Math.min(base.height, area.height);
     const center = base.x + base.width / 2;
@@ -35,20 +37,23 @@ function calculateLayout(base, open, area, petSize = 112) {
     if (anchorY < area.y || anchorY > area.y + area.height)
         y = clamp(y, area.y, area.y + area.height - height);
 
-    // Reserve equal space on both sides. The pet has the same local origin
-    // throughout a move, including the frame before the layout IPC arrives.
+    // Reserve panel space before the first renderer frame. The native window
+    // and the painted avatar must keep the same origin across panel toggles.
     const panelWidth = Math.min(PANEL_WIDTH, Math.max(Math.floor(area.width / 2), Math.min(196, area.width - 160)));
     const petOffset = open ? Math.max(0, Math.min(panelWidth, Math.floor((area.width - baseWidth) / 2))) : 0;
     const width = baseWidth + 2 * petOffset;
     const x = baseX - petOffset;
+    const windowHeight = open ? Math.min(area.height, Math.max(height, SETTINGS_VIEWPORT_HEIGHT)) : height;
+    const windowY = open ? clamp(y - Math.floor((windowHeight - height) / 2), area.y, area.y + area.height - windowHeight) : y;
     return {
-        layout: {open, baseWidth, petOffset, panelWidth:open ? panelWidth : 0,
+        layout: {open, settingsOpen, baseWidth, baseHeight:height, petOffset,
+            petBottomOffset:windowY + windowHeight - y - height, panelWidth:open ? panelWidth : 0,
             panelLeft:petOffset + baseWidth,
             clipLeft:Math.max(0,area.x-baseX), clipRight:Math.max(0,baseX+baseWidth-area.x-area.width),
-            clipTop:Math.max(0,area.y-y), clipBottom:Math.max(0,y+height-area.y-area.height),
+            clipTop:Math.max(0,area.y-windowY), clipBottom:Math.max(0,windowY+windowHeight-area.y-area.height),
             visibleLeft:Math.max(0,area.x-x), visibleRight:Math.min(width,area.x+area.width-x),
-            width, height},
-        bounds: {x, y, width, height},
+            width, height:windowHeight},
+        bounds: {x, y:windowY, width, height:windowHeight},
     };
 }
 
@@ -56,6 +61,7 @@ function createLimitsWindow(win, screen, initialOpen, persist, options = {}) {
     const petSize = Number.isFinite(options.petSize) ? options.petSize : 112;
     let base = win.getBounds();
     let open = initialOpen === true;
+    let settingsOpen = false;
     let layout;
     let appliedBounds = win.getBounds();
     let applying = false;
@@ -84,7 +90,7 @@ function createLimitsWindow(win, screen, initialOpen, persist, options = {}) {
         base = calculateLayout(base, false, area, petSize).bounds;
         // Reserve the transparent drawer area before the renderer loads. A toggle
         // must not move the native origin and the avatar in separate frames.
-        const next = calculateLayout(base, true, area, petSize);
+        const next = calculateLayout(base, true, area, petSize, settingsOpen);
         layout = {...next.layout, open};
         applying = true;
         try {
@@ -102,6 +108,10 @@ function createLimitsWindow(win, screen, initialOpen, persist, options = {}) {
         } finally { applying = false; }
         win.webContents.send('limits:layout', getLayout());
     };
+    const scheduleSave = () => {
+        clearSaveTimer();
+        saveTimer = setTimeout(() => { save().catch(() => {}); }, 300);
+    };
     const movedOrResized = () => {
         if (applying) return;
         const actual = win.getBounds();
@@ -110,7 +120,7 @@ function createLimitsWindow(win, screen, initialOpen, persist, options = {}) {
         // Ignore native DPI rounding on a translation. An actual resize changes
         // the compact size about the new centre, independently of drawer state.
         const resized = Math.abs(actual.width - appliedBounds.width) > 2;
-        const width = resized ? Math.max(220, actual.width - 2 * layout.panelWidth) : base.width;
+        const width = resized ? Math.max(220, actual.width - 2 * layout.petOffset) : base.width;
         base = {
             x: resized ? Math.round(actual.x + (actual.width - width) / 2) : base.x + actual.x - appliedBounds.x,
             y: base.y + actual.y - appliedBounds.y,
@@ -119,8 +129,7 @@ function createLimitsWindow(win, screen, initialOpen, persist, options = {}) {
         };
         appliedBounds = actual;
         apply();
-        if (saveTimer) clearTimeout(saveTimer);
-        saveTimer = setTimeout(() => { save().catch(() => {}); }, 300);
+        scheduleSave();
     };
     win.on('move', movedOrResized);
     win.on('resize', movedOrResized);
@@ -129,6 +138,23 @@ function createLimitsWindow(win, screen, initialOpen, persist, options = {}) {
     return {
         getLayout,
         getBaseBounds,
+        readSnapshot: options.readSnapshot,
+        setSource: options.setSource,
+        setBasePosition(x, y) {
+            if (base.x === x && base.y === y) return;
+            base = {...base, x, y};
+            apply();
+            scheduleSave();
+        },
+        setSettingsOpen(value) {
+            if (typeof value !== 'boolean') throw new TypeError('Expected a boolean settings state');
+            if (settingsOpen !== value) {
+                settingsOpen = value;
+                layout = {...layout, settingsOpen};
+                win.webContents.send('limits:layout', getLayout());
+            }
+            return getLayout();
+        },
         requestRefresh() {
             if (!open) throw new Error('Limits panel is closed');
             if (!options.onRefresh || options.onRefresh() !== true) throw new Error('Limits bridge unavailable');

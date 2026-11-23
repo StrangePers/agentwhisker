@@ -31,6 +31,7 @@ const siteCopy = {
   errorCaption: ["A task needs a look","Hay una tarea que necesita atención","有任务需要检查","किसी कार्य पर ध्यान चाहिए"],
   start: ["Bring Kitsu to your desktop.","Lleva a Kitsu a tu escritorio.","让 Kitsu 来到你的桌面。","Kitsu को अपने डेस्कटॉप पर लाएँ।"],
   startBody: ["Connect Codex, Claude Code, OpenCode, or Qwen Code directly. A JSON status file and Agent Console are also supported.","Conecta Codex, Claude Code, OpenCode o Qwen Code directamente. También puedes usar un archivo de estado JSON o Agent Console.","可直接连接 Codex、Claude Code、OpenCode 或 Qwen Code。也支持 JSON 状态文件和 Agent Console。","Codex, Claude Code, OpenCode या Qwen Code को सीधे जोड़ें। JSON स्थिति फ़ाइल और Agent Console का भी उपयोग कर सकते हैं।"],
+  subscriptionLimits: ["See what remains on your Codex or OpenCode Go subscription and when the limit resets.","Consulta cuánto te queda en tu suscripción de Codex u OpenCode Go y cuándo se reinicia el límite.","查看 Codex 或 OpenCode Go 订阅的剩余额度及重置时间。","देखें कि आपकी Codex या OpenCode Go सदस्यता में कितनी सीमा शेष है और वह कब रीसेट होगी।"],
   releaseNotes: ["Release notes","Notas de la versión","发行说明","रिलीज़ नोट्स"],
   download: ["Download for Windows","Descargar para Windows","下载 Windows 版","Windows के लिए डाउनलोड करें"],
   stepZip: ["Download the Windows x64 ZIP from GitHub Releases.","Descarga el ZIP para Windows x64 desde GitHub Releases.","从 GitHub Releases 下载 Windows x64 ZIP 文件。","GitHub Releases से Windows x64 की ZIP फ़ाइल डाउनलोड करें।"],

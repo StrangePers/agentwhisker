@@ -56,6 +56,7 @@ exports.DEFAULT_SETTINGS = {
     showTaskLabel: true,
     showBusyBubble: true,
     limitsPanelOpen: false,
+    limitsButtonVisibility: "auto",
     statusFile: "",
     windowBounds: null,
 };
@@ -107,6 +108,7 @@ function normalizeSettings(value) {
         showTaskLabel: input.showTaskLabel !== false,
         showBusyBubble: input.showBusyBubble !== false,
         limitsPanelOpen: input.limitsPanelOpen === true,
+        limitsButtonVisibility: input.limitsButtonVisibility === "hidden" ? "hidden" : "auto",
         statusFile: cleanString(input.statusFile),
         windowBounds: normalizeBounds(input.windowBounds),
     };

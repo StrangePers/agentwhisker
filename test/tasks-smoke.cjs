@@ -295,12 +295,14 @@ async function main() {
     assert.equal(await badge.getAttribute("aria-expanded"), "true");
     await limitsButton.click();
     await limits.waitFor({ state: "visible" });
+    const beforeEdge = await petStage.evaluate(el => screenY + el.getBoundingClientRect().top);
     await app.evaluate(({ BrowserWindow, screen }) => {
       const window = BrowserWindow.getAllWindows()[0];
       const area = screen.getDisplayMatching(window.getBounds()).workArea;
       window.setPosition(area.x - 240, area.y - 210);
     });
-    await page.waitForFunction(() => limitsLayout.clipTop >= 180);
+    await page.waitForFunction(before => limitsLayout.visibleLeft >= 200 &&
+      screenY + petStage.getBoundingClientRect().top <= before - 80, beforeEdge);
     await rows.first().hover();
     const edgeOverlap = await panel.evaluate(node => {
       const tasks = node.getBoundingClientRect();
@@ -309,10 +311,17 @@ async function main() {
         tasks.top < quotas.bottom && tasks.bottom > quotas.top;
     });
     assert.equal(edgeOverlap, false, "Limits drawer covers task panel at screen edge");
+    const nativeBounds = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getBounds());
+    const beforeSettings = await nativeBounds();
     await settingsButton.click();
     await page.locator("#closeSettings").waitFor({ state: "visible" });
+    await page.waitForFunction(() => limitsLayout.settingsOpen);
+    assert.deepEqual(await nativeBounds(), beforeSettings, "Opening settings resized the native avatar window");
     assert.equal(await badge.getAttribute("aria-expanded"), "false");
+    await limits.waitFor({ state: "hidden" });
     await page.locator("#closeSettings").click();
+    await page.waitForFunction(() => !limitsLayout.settingsOpen);
+    assert.deepEqual(await nativeBounds(), beforeSettings, "Closing settings moved the native avatar window");
     async function moveNearCenter() {
       return app.evaluate(({ screen, BrowserWindow }) => {
         const win = BrowserWindow.getAllWindows()[0];
@@ -324,8 +333,10 @@ async function main() {
       });
     }
     await moveNearCenter();
-    await page.waitForFunction(() => limitsLayout.clipTop === 0);
+    await page.waitForFunction(() => limitsLayout.visibleLeft === 0);
     await page.evaluate(() => applyPetSize(360));
+    await page.evaluate(() => setLimitsOpen(true));
+    await limits.waitFor({ state: "visible" });
     await badge.click();
     assert.equal(await badge.getAttribute("aria-expanded"), "true");
     const getWindowBounds = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getBounds());
@@ -361,6 +372,26 @@ async function main() {
     await badge.click();
     await dragAcrossCenter();
     assert.equal(await badge.getAttribute("aria-expanded"), "false");
+    for (const size of [160, 360]) {
+      await page.evaluate(size => applyPetSize(size), size);
+      const pet = await petStage.boundingBox();
+      await app.evaluate(({ BrowserWindow, screen }, pet) => {
+        const win = BrowserWindow.getAllWindows()[0];
+        const bounds = win.getBounds();
+        const area = screen.getDisplayMatching(bounds).workArea;
+        win.setPosition(Math.round(area.x + area.width - pet.x - pet.width - 24), bounds.y);
+      }, pet);
+      await page.waitForFunction(() => limitsLayout.width - limitsLayout.visibleRight >= 200);
+      const buttonPositions = () => page.evaluate(() => [settingsButton, threadBadge].map(button => ({
+        left:button.style.left, top:button.style.top,
+      })));
+      const before = await buttonPositions();
+      await page.evaluate(() => setSettingsOpen(true));
+      await page.waitForFunction(() => limitsLayout.settingsOpen && settingsPopover.dataset.side === "left");
+      assert.deepEqual(await buttonPositions(), before, `Settings moved the gear or count at ${size}`);
+      await page.evaluate(() => setSettingsOpen(false));
+      await page.waitForFunction(() => !limitsLayout.settingsOpen);
+    }
     console.log("Task bubble: equal rows, 160/360 standing and sitting, trail, scrolling, offline, controls at 120/160/248/360, limits toggle and drag");
   } finally {
     await app.close();

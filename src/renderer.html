@@ -31,7 +31,11 @@
         </header>
         <p id="limitsStatus" class="limits-message" role="status" data-t="readLimits"></p>
         <div id="limitsProviders"></div>
-        <div id="limitsExtra" class="limits-extra"></div>
+        <button id="limitsShowAll" class="limits-more" type="button" aria-expanded="false" aria-controls="limitsProviders" hidden data-t="showAllLimits"></button>
+        <details id="limitsCredits" class="limits-extra" hidden>
+          <summary data-t="limitCredits"></summary>
+          <div id="limitsExtra"></div>
+        </details>
       </section>
 
       <section id="threadPopover" class="thread-popover" data-t-label="tasks" aria-hidden="true" inert>
@@ -51,6 +55,7 @@
 
       <section id="settingsPopover" class="settings-popover" data-t-label="petSettings" aria-hidden="true">
         <header class="pet-heading"><h2 data-t="pet"></h2><button id="closeSettings" data-t-label="closeSettings">×</button></header>
+        <div class="settings-content">
         <div class="skin-heading" data-t="character"></div>
         <div id="skinGallery" class="skin-gallery" role="group" data-t-label="chooseCharacter"></div>
         <button id="importPet" type="button" data-t="installCharacterAction"></button>
@@ -72,6 +77,13 @@
         </div>
         <label class="setting-pair" for="taskLabelToggle"><span data-t="taskLabel"></span> <input id="taskLabelToggle" type="checkbox" role="switch" checked></label>
         <label class="setting-pair bubble-setting" for="busyBubbleToggle"><span data-t="taskBubble"></span> <input id="busyBubbleToggle" type="checkbox" role="switch" checked></label>
+        <div class="language-setting" id="limitsPreferenceRow" hidden>
+          <label for="limitsPreference" data-t="limitsButtonSetting"></label>
+          <select id="limitsPreference">
+            <option value="auto" data-t="automatic"></option>
+            <option value="hidden" data-t="hideLimitsButton"></option>
+          </select>
+        </div>
         <div class="connection">
           <details id="connectionOptions"><summary><strong id="connectionName" data-t="source"></strong><span data-t="automatic"></span></summary>
             <div id="sourceOptions"><label><span data-t="source"></span> <select id="providerSelect"></select></label>
@@ -84,6 +96,7 @@
           <div class="motion-grid"><button data-preview="idle" data-t="idle"></button><button data-preview="running" data-t="running"></button>
           <button data-preview="waiting" data-t="waiting"></button><button data-preview="failed" data-t="failed"></button></div>
         </details>
+        </div>
       </section>
     </main>
     <script src="./locale.js"></script>

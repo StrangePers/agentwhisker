@@ -46,6 +46,8 @@ const settings_1 = require("./main/settings");
 const validate_pet_1 = require("./main/validate-pet");
 
 const limits_window = require("./main/limits-window.cjs");
+const { findCodexExecutable, createCodexLimits } = require("./main/providers/codex-limits.cjs");
+const { createOpenCodeLimits } = require("./main/providers/opencode-limits.cjs");
 const { listCharacters, importCharacter } = require("./main/character-library.cjs");
 const limitsWindows = new WeakMap();
 let appTray = null;
@@ -164,13 +166,27 @@ async function createWindow(args) {
     win.setAlwaysOnTop(true, "floating");
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     let limitsBridge = null;
-    limitsWindows.set(win, limits_window.createLimitsWindow(win, electron_1.screen, Boolean(managedFile && effectiveSettings.limitsPanelOpen),
-        patch => (0, settings_1.updateSettings)(settingsPath, patch), {petSize:effectiveSettings.petSize, onRefresh:() => {
+    const codexExecutable = managedFile ? null : findCodexExecutable();
+    const nativeLimits = new Map();
+    if (!managedFile) {
+        if (codexExecutable) nativeLimits.set("codex", createCodexLimits(codexExecutable, codexHome));
+        nativeLimits.set("opencode", createOpenCodeLimits());
+    }
+    let limitsProvider = effectiveSettings.provider;
+    const startWithLimits = effectiveSettings.limitsPanelOpen && effectiveSettings.limitsButtonVisibility !== "hidden" &&
+        Boolean(managedFile || nativeLimits.has(limitsProvider));
+    const readSnapshot = managedFile ? () => limits_window.readLimitsSnapshot(electron_1.app.getPath("userData"))
+        : () => nativeLimits.get(limitsProvider)?.read() || null;
+    limitsWindows.set(win, limits_window.createLimitsWindow(win, electron_1.screen, startWithLimits,
+        patch => (0, settings_1.updateSettings)(settingsPath, patch), {petSize:effectiveSettings.petSize, readSnapshot,
+        setSource: value => { limitsProvider = value; }, onRefresh:() => {
+            if (!managedFile) return nativeLimits.get(limitsProvider)?.refresh() === true;
             if (!limitsBridge || limitsBridge.exitCode !== null || limitsBridge.stdin.destroyed || !limitsBridge.stdin.writable)
                 return false;
             limitsBridge.stdin.write("R", () => {});
             return true;
         }}));
+    if (startWithLimits) nativeLimits.get(limitsProvider)?.refresh();
     wireTray(win);
     electron_1.app.on("second-instance", () => { win.show(); win.focus(); });
     const childProcess = require("node:child_process");
@@ -205,6 +221,7 @@ async function createWindow(args) {
             statusFile: effectiveSettings.statusFile,
             managed: managedFile && !restoreSource ? "1" : "",
             managedFile,
+            nativeLimits: [...nativeLimits.keys()].join(","),
             provider: effectiveSettings.provider,
             petSize: String(effectiveSettings.petSize),
             state: effectiveSettings.selectedState,
@@ -258,9 +275,9 @@ function openConsole(taskId) {
     });
 }
 function registerIpcHandlers() {
-    electron_1.ipcMain.handle("limits:read", async (_event, ...args) => {
+    electron_1.ipcMain.handle("limits:read", async (event, ...args) => {
         if (args.length) throw new TypeError("readLimits accepts no arguments");
-        return limits_window.readLimitsSnapshot(electron_1.app.getPath("userData"));
+        return limitsForEvent(event).readSnapshot();
     });
     const limitsForEvent = event => {
         const win = electron_1.BrowserWindow.fromWebContents(event.sender);
@@ -273,6 +290,7 @@ function registerIpcHandlers() {
     });
     electron_1.ipcMain.handle("limits:set-open", (event, value) => limitsForEvent(event).setOpen(value));
     electron_1.ipcMain.handle("limits:get-layout", event => limitsForEvent(event).getLayout());
+    electron_1.ipcMain.handle("settings:set-panel-open", (event, value) => limitsForEvent(event).setSettingsOpen(value));
     electron_1.ipcMain.handle("console:open", (_event, taskId) => openConsole(taskId));
     electron_1.ipcMain.handle("console:menu", async (event, state) => {
         const win = electron_1.BrowserWindow.fromWebContents(event.sender);
@@ -283,7 +301,7 @@ function registerIpcHandlers() {
         const menu = electron_1.Menu.buildFromTemplate([
             { label: t("taskPanel"), type: "checkbox", checked: state?.panelOpen === true,
               click: item => send({action:"panel", value:item.checked}) },
-            { label: t("usageLimits"), visible:Boolean(process.env.AGENT_CONSOLE_PET_PYTHON), type: "checkbox", checked: settings.limitsPanelOpen === true,
+            { label: t("usageLimits"), visible:state?.limitsAvailable === true, type: "checkbox", checked: settings.limitsPanelOpen === true,
               click: item => send({action:"limits", value:item.checked}) },
             { label: t("petSettings"), click: () => send({action:"settings"}) },
             { type: "separator" },
@@ -316,6 +334,7 @@ function registerIpcHandlers() {
     electron_1.ipcMain.handle("activity:read", async (_event, options) => (0, activity_1.readActivity)(options));
     electron_1.ipcMain.handle("settings:get", async () => (0, settings_1.readSettings)(path.join(electron_1.app.getPath("userData"), "settings.json")));
     electron_1.ipcMain.handle("settings:update", async (event, patch) => {
+        if (patch && Object.hasOwn(patch, "provider")) limitsForEvent(event).setSource((0, providers_1.normalizeProvider)(patch.provider));
         const saved = await (0, settings_1.updateSettings)(path.join(electron_1.app.getPath("userData"), "settings.json"), patch);
         if (patch && Object.hasOwn(patch, "locale")) {
             useLocale(saved.locale);
@@ -337,19 +356,21 @@ function registerIpcHandlers() {
         if (phase === "end") { grabs.delete(win); return; }
         if (!Number.isFinite(x) || !Number.isFinite(y)) return;
         if (phase === "start") {
-            const origin = win.getBounds();
+            const origin = limitsForEvent(event).getBaseBounds();
             grabs.set(win, {x:origin.x - x, y:origin.y - y});
         } else if (phase === "move" && grabs.has(win)) {
             const offset = grabs.get(win);
-            win.setPosition(Math.round(x + offset.x), Math.round(y + offset.y), false);
+            limitsForEvent(event).setBasePosition(Math.round(x + offset.x), Math.round(y + offset.y));
         }
     });
     electron_1.ipcMain.on("window:move-by", (event, deltaX, deltaY) => {
         const win = electron_1.BrowserWindow.fromWebContents(event.sender);
         if (!win || win.isDestroyed())
             return;
-        const [x, y] = win.getPosition();
-        win.setPosition(Math.round(x + Number(deltaX || 0)), Math.round(y + Number(deltaY || 0)), false);
+        const windowLayout = limitsForEvent(event);
+        const {x, y} = windowLayout.getBaseBounds();
+        const dx = Number(deltaX || 0), dy = Number(deltaY || 0);
+        if (Number.isFinite(dx) && Number.isFinite(dy)) windowLayout.setBasePosition(Math.round(x + dx), Math.round(y + dy));
     });
 }
 if (process.versions.electron && process.type === "browser") {

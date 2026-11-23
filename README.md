@@ -49,6 +49,17 @@ Start your coding agent under the same Windows user account. Hover over Kitsu, o
 
 OpenCode's running service exposes pending questions and permission requests. The transcript sources can show a question when the agent records its input request. Start a session in the agent to populate its source. T3Code remains experimental.
 
+## Subscription limits
+
+Choose **Codex** or **OpenCode** under **Source**, then open the limits panel next to Kitsu.
+
+- **Codex** reads limits through the installed Codex CLI when you are signed in with ChatGPT.
+- **OpenCode Go** reads the allowance for the workspace connected to the running OpenCode service.
+
+The panel shows the window with the least remaining usage for each provider. Expand the list to see the other windows. Saved values are marked when they become outdated. Set **Limits button** to **Hide** to keep the control off the desktop. Agent Console can supply its own limits and credits.
+
+The gear opens settings beside Kitsu. Near the edge of a screen, the panel can open on the other side.
+
 ## Connect a JSON status file
 
 AgentWhisker starts in standalone mode. Pick a JSON status file in settings or pass its path on launch.

@@ -33,6 +33,7 @@ const { locale, t, taskCount: formatTaskCount } = translator(params.get("locale"
 document.documentElement.lang = locale;
 translateElements(document, t);
 const codexHome = params.get("codexHome") || "";
+const nativeLimitsProviders = new Set((params.get("nativeLimits") || "").split(",").filter(Boolean));
 const initialPetId = params.get("pet") || "";
 const initialState = params.get("state") || "";
 let provider = params.get("provider") || "";
@@ -228,7 +229,7 @@ function fitPetShape() {
   const areaScale = petSize / 192 * Math.sqrt(18584 / shape.area);
   // Crossing a monitor must not change the scale or the point being held.
   const roomX = (limitsLayout?.baseWidth || window.innerWidth) - 68;
-  const roomY = window.innerHeight - 74;
+  const roomY = (limitsLayout?.baseHeight || window.innerHeight) - 74;
   spriteScale = Math.max(0.1, Math.min(areaScale, Math.max(48, roomX) / shape.width,
     Math.max(48, roomY) / shape.height));
   petStage.classList.toggle("hd", spriteScale * (window.devicePixelRatio || 1) > 1);
@@ -825,8 +826,9 @@ async function boot() {
   applyPetSize(petSize);
   updateProviderControls();
   setState(requestedState === "auto" ? "idle" : requestedState);
-  limitsButton.hidden = !managedFile;
-  await initializeLimits({...settings, limitsPanelOpen:Boolean(managedFile && settings.limitsPanelOpen)});
+  limitsPreference.value = settings.limitsButtonVisibility || "auto";
+  updateLimitsAvailability();
+  await initializeLimits({...settings, limitsPanelOpen:!limitsButton.hidden && settings.limitsPanelOpen});
   await refreshActivity();
   if (params.get("showSettings") === "1") setSettingsOpen(true);
 }
@@ -1038,13 +1040,18 @@ function setSettingsOpen(value) {
   settingsOpen = value;
   settingsButton.setAttribute("aria-expanded", String(value));
   if (!value && previewState) finishPreview();
-  if (settingsOpen) setPopoverOpen(false);
+  if (settingsOpen) {
+    setPopoverOpen(false);
+    if (limitsOpen) void setLimitsOpen(false);
+  }
   appElement.classList.toggle("settings-open", settingsOpen);
   settingsPopover.classList.toggle("is-open", settingsOpen);
   settingsPopover.setAttribute("aria-hidden", String(!settingsOpen));
-  if (settingsOpen) positionSettingsPopover();
   positionLimits();
   syncMousePassthrough();
+  window.codexPets.setSettingsPanelOpen?.(value).then(layout => {
+    if (settingsOpen === value && limitsLayout?.settingsOpen !== value) applyLimitsLayout(layout);
+  }).catch(console.error);
 }
 
 function applyPetSize(value) {
@@ -1053,36 +1060,35 @@ function applyPetSize(value) {
   petSizeInput.value = String(petSize);
   document.getElementById("petSizeValue").value = `${petSize} px`;
   fitPetShape();
-  if (settingsOpen) positionSettingsPopover();
   positionLimits();
   syncMousePassthrough();
 }
 
-function positionSettingsPopover() {
-  settingsPopover.style.maxHeight = "";
-  settingsPopover.style.overflowY = "";
-
+function positionSettingsPopover(pet, actions) {
   const margin = 8;
-  const gap = 12;
-  const area = limitsBaseArea();
-  const width = Math.min(336, Math.max(120, area.width - 16));
+  const gap = 18;
+  const left = (limitsLayout?.visibleLeft ?? 0) + margin;
+  const right = (limitsLayout?.visibleRight ?? window.innerWidth) - margin;
+  const top = (limitsLayout?.clipTop || 0) + margin;
+  const bottom = (limitsLayout?.height ?? window.innerHeight) - (limitsLayout?.clipBottom || 0) - margin;
+  const edgeLeft = Math.min(pet.left, actions.minX);
+  const edgeRight = Math.max(pet.left + pet.width, actions.maxX);
+  const desiredWidth = Math.min(336, Math.max(1, right - left));
+  const rightRoom = right - edgeRight - gap;
+  const leftRoom = edgeLeft - gap - left;
+  const usableWidth = Math.min(desiredWidth, 260);
+  const side = rightRoom >= desiredWidth ? "right" : leftRoom >= desiredWidth ? "left"
+    : Math.max(leftRoom, rightRoom) >= usableWidth ? (rightRoom >= leftRoom ? "right" : "left") : "center";
+  const width = side === "center" ? desiredWidth : Math.min(desiredWidth, side === "right" ? rightRoom : leftRoom);
+  const position = side === "right" ? edgeRight + gap : side === "left" ? edgeLeft - gap - width : (left + right - width) / 2;
+  const maxHeight = Math.max(1, bottom - top);
   settingsPopover.style.width = `${width}px`;
-  const naturalHeight = settingsPopover.scrollHeight || settingsPopover.offsetHeight || 96;
-  const basePetRect = layoutRectInApp(shape ? petStage : petElement);
-  const petClearanceTop = visualPetClearanceTop(basePetRect);
-  const topMargin = Math.max(margin, (limitsLayout?.clipTop || 0) + margin);
-  const availableAbove = Math.max(72, petClearanceTop - gap - topMargin);
-  const maxHeight = Math.min(naturalHeight, availableAbove);
-  const height = Math.min(naturalHeight, maxHeight);
-  const left = clamp(basePetRect.left + basePetRect.width / 2 - width / 2, area.left + margin, area.left + area.width - width - margin);
-  const top = Math.max(topMargin, petClearanceTop - height - gap);
-
-  settingsPopover.style.left = `${Math.round(left)}px`;
-  settingsPopover.style.top = `${Math.round(top)}px`;
-  if (naturalHeight > maxHeight) {
-    settingsPopover.style.maxHeight = `${Math.round(maxHeight)}px`;
-    settingsPopover.style.overflowY = "auto";
-  }
+  settingsPopover.style.maxHeight = `${maxHeight}px`;
+  const height = settingsPopover.offsetHeight;
+  const positionY = side === "center" ? (top + bottom - height) / 2 : pet.top + (pet.height - height) / 2;
+  settingsPopover.style.left = `${Math.round(position)}px`;
+  settingsPopover.style.top = `${Math.round(clamp(positionY, top, bottom - height))}px`;
+  settingsPopover.dataset.side = side;
 }
 
 function positionThreadPopover(petRect, anchors) {
@@ -1215,10 +1221,6 @@ function threadDotClearsPet(x, y, padding, rect) {
   return true;
 }
 
-function visualPetClearanceTop(rect) {
-  return rect.top;
-}
-
 function layoutRectInApp(element) {
   const appRect = appElement.getBoundingClientRect();
   const rect = element.getBoundingClientRect();
@@ -1244,6 +1246,10 @@ function updateProviderControls() {
 const limitsButton = document.getElementById("limitsButton");
 const limitsPopover = document.getElementById("limitsPopover");
 const limitsRefreshButton = document.getElementById("limitsRefreshButton");
+const limitsPreference = document.getElementById("limitsPreference");
+const limitsShowAll = document.getElementById("limitsShowAll");
+const limitsCredits = document.getElementById("limitsCredits");
+let showAllLimits = false;
 let limitsOpen = false;
 let limitsLayout = null;
 let drawerSide = null;
@@ -1275,9 +1281,10 @@ function limitsBaseArea() {
 function applyLimitsLayout(layout) {
   if (!layout || !['baseWidth','petOffset','panelLeft','panelWidth','width','height'].every(key => Number.isFinite(layout[key])) || layout.baseWidth < 120) return;
   limitsLayout = layout;
+  appElement.style.height = `${layout.height}px`;
+  appElement.style.setProperty("--pet-bottom-offset", `${layout.petBottomOffset || 0}px`);
   fitPetShape();
   petStage.style.left = `${layout.petOffset + layout.baseWidth / 2}px`;
-  if (settingsOpen) positionSettingsPopover();
   positionLimits();
   syncLimitsPanelVisibility();
   syncMousePassthrough();
@@ -1290,7 +1297,7 @@ function actionOverlaps({x, y, width, height}, rect, gap) {
     y + height / 2 + gap > rect.top && y - height / 2 - gap < rect.top + rect.height;
 }
 
-function positionPetActions(rect, taskPanel = null) {
+function positionPetActions(rect, obstruction = null) {
   const landmark = selectedPetId === "kitsu" ? kitsuForehead[currentState] : pets.find(p => p.id === selectedPetId)?.forehead?.[currentState];
   const headX = shape && landmark ? rect.left + (landmark[0] - shape.left) * spriteScale : rect.left + rect.width * .5;
   const headY = shape && landmark ? rect.top + (landmark[1] - shape.top) * spriteScale : rect.top + rect.height * .18;
@@ -1305,6 +1312,7 @@ function positionPetActions(rect, taskPanel = null) {
     // Try the preferred side first. Near a screen edge, use the other side or
     // move up/down to keep the control outside both the silhouette and its siblings.
     let best = null;
+    const obscuredBadge = Boolean(obstruction && popoverOpen && button === threadBadge);
     for (let step = 0; step <= 20; step++) {
       for (const offset of step ? [-step * 12, step * 12] : [0]) {
         const y = clamp(idealY + offset, top + height/2, bottom - height/2);
@@ -1322,7 +1330,7 @@ function positionPetActions(rect, taskPanel = null) {
           const desired = side < 0 ? lo-gap-width/2 : hi+gap+width/2;
           const x = clamp(desired, left+width/2, right-width/2);
           const collision = placed.some(p => Math.abs(x-p.x)<(width+p.width)/2+9 && Math.abs(y-p.y)<(height+p.height)/2+9);
-          const blocked = taskPanel && button !== threadBadge && actionOverlaps({x,y,width,height}, taskPanel, 8);
+          const blocked = obstruction && !obscuredBadge && actionOverlaps({x,y,width,height}, obstruction, 8);
           const score = (blocked ? 100000 : 0) + (collision ? 10000 : 0) + Math.abs(x-desired)*20 + Math.abs(y-idealY) + (side===direction ? 0 : 70);
           if (!best || score < best.score) best = {x,y,width,height,score};
         }
@@ -1331,7 +1339,7 @@ function positionPetActions(rect, taskPanel = null) {
     }
     button.style.left = Math.round(best.x-width/2) + "px";
     button.style.top = Math.round(best.y-height/2) + "px";
-    if (!button.hidden && !(taskPanel && button === threadBadge)) placed.push(best);
+    if (!button.hidden && !obscuredBadge) placed.push(best);
     return best;
   }
 
@@ -1358,6 +1366,10 @@ function positionPetActions(rect, taskPanel = null) {
 function positionLimits() {
   const rect = layoutRectInApp(shape ? petStage : petElement);
   let actions = positionPetActions(rect);
+  if (settingsOpen) {
+    positionSettingsPopover(rect, actions);
+    if (settingsPopover.dataset.side === "center") actions = positionPetActions(rect, layoutRectInApp(settingsPopover));
+  }
   let taskPanel = null;
   if (popoverOpen) {
     taskPanel = positionThreadPopover(rect, actions);
@@ -1458,11 +1470,44 @@ function limitsNode(tag, className, text) {
   if (text !== undefined) node.textContent = String(text);
   return node;
 }
+
+function limitLabel(window) {
+  const label = {
+    "5 часов": "limitFiveHours", "Неделя": "limitWeek", "Месяц": "limitMonth",
+    "Основной лимит": "limitPrimary", "Дополнительный лимит": "limitSecondary", "Личный лимит": "limitIndividual",
+  }[window.label] || {five_hour:"limitFiveHours",seven_day:"limitWeek",month:"limitMonth"}[window.kind] ||
+    {300: "limitFiveHours", 10080: "limitWeek"}[window.window_minutes];
+  const title = label ? t(label) : window.kind === "primary" ? t("limitPrimary") :
+    window.kind === "secondary" ? t("limitSecondary") : String(window.label || t("limit")).slice(0,80);
+  const bucket = window.bucket_name ? ` · ${window.bucket_name}` : "";
+  if (label) return title + bucket;
+  if (Number.isFinite(window.window_minutes) && window.window_minutes > 0) {
+    const minutes = window.window_minutes;
+    const hours = minutes >= 60 && minutes % 60 === 0;
+    return new Intl.NumberFormat(locale, {style:"unit", unit:hours ? "hour" : "minute", unitDisplay:"long"})
+      .format(hours ? minutes / 60 : minutes) + bucket;
+  }
+  return title + bucket;
+}
+
+function hasLimitValue(window) {
+  return typeof window?.remaining_percent === "number" && window.remaining_percent >= 0 && window.remaining_percent <= 100 &&
+    !["unknown", "unavailable", "error"].includes(window.status);
+}
+
+function updateLimitsAvailability() {
+  const available = Boolean(managedFile || nativeLimitsProviders.has(provider));
+  document.getElementById("limitsPreferenceRow").hidden = !available;
+  limitsButton.hidden = !available || limitsPreference.value === "hidden";
+  if (limitsButton.hidden && limitsOpen) void setLimitsOpen(false);
+  positionLimits();
+}
 function renderLimits() {
   const host = document.getElementById('limitsProviders');
   const extra = document.getElementById('limitsExtra');
   const message = document.getElementById('limitsStatus');
-  const providers = Array.isArray(limitsValue?.providers) ? limitsValue.providers : [];
+  const providers = (Array.isArray(limitsValue?.providers) ? limitsValue.providers : []).slice(0,8)
+    .filter(provider => provider?.connected === true && ['codex','opencode_go'].includes(provider.id));
   const progress = limitsValue?.refresh;
   const completed = Number.isFinite(progress?.completed_at) ? progress.completed_at : 0;
   if (limitsRefreshOpenedAt && completed >= limitsRefreshOpenedAt) limitsRefreshOpenedAt = 0;
@@ -1472,53 +1517,59 @@ function renderLimits() {
   const overdue = pendingOpen ? Date.now() - limitsRefreshOpenedAt > 45000
     : inFlight && (!Number.isFinite(requested) || Date.now() - requested > 45000);
   const busy = limitsOpen && !limitsError && !overdue && (pendingOpen || inFlight);
-  const hasSaved = providers.length > 0 || limitsValue?.extra_usage?.status === 'known';
+  const hasSaved = providers.some(provider => Array.isArray(provider.windows) && provider.windows.some(hasLimitValue)) ||
+    typeof limitsValue?.extra_usage?.available_usd === 'string';
   limitsBusy = busy;
   limitsRefreshButton.classList.toggle('is-refreshing', busy);
   limitsRefreshButton.disabled = busy;
   limitsRefreshButton.setAttribute('aria-busy', String(busy));
   host.setAttribute('aria-busy', String(busy));
-  const statusText = busy ? (hasSaved ? t("refreshingSaved") : t("refreshingLimits"))
-    : limitsError || (overdue ? t("refreshOverdue")
-    : limitsValue?.error || progress?.state === 'error' ? t("refreshFailed")
-    : !limitsValue ? t("readLimits") : !providers.length ? t("limitsPending") : '');
-  if (message.textContent !== statusText) message.textContent = statusText;
   const failed = !busy && (!!limitsError || overdue || !!limitsValue?.error || progress?.state === 'error');
+  const unavailable = {
+    codex_account:"limitsCodexSignIn", opencode_service:"limitsOpenCodeStart", opencode_go_account:"limitsOpenCodeSignIn",
+    opencode_version:"limitsOpenCodeVersion",
+  }[limitsValue?.unavailable];
+  const statusText = busy ? (hasSaved ? t("refreshingSaved") : t("refreshingLimits"))
+    : failed ? t(hasSaved ? (overdue ? "refreshOverdue" : "refreshFailed") : "limitsLoadFailed")
+    : unavailable ? t(unavailable)
+    : !limitsValue ? t("readLimits") : !hasSaved ? t("limitsPending") : '';
+  if (message.textContent !== statusText) message.textContent = statusText;
+  message.dataset.error = String(failed);
   limitsRefreshButton.title = failed ? t("retryLimit", { status: statusText })
     : busy ? t("refreshingSaved") : t("refreshLimits");
   limitsRefreshButton.classList.toggle('has-error', failed);
   if (failed) limitsRefreshButton.setAttribute('aria-describedby', 'limitsStatus');
   else limitsRefreshButton.removeAttribute('aria-describedby');
-  // A failed request updates the control, but keeps the last rendered snapshot
-  // and its dimensions. A first opening can still render an available cache.
-  if ((failed || limitsValue?.error || progress?.state === 'error') &&
-      (host.childElementCount || extra.childElementCount)) return;
   host.replaceChildren(); extra.replaceChildren();
-  for (const provider of providers.slice(0,8)) {
-    if (!provider || !['codex','opencode_go'].includes(provider.id)) continue;
-    const old = limitsOld(provider.observed_at) || provider.status === 'stale' || !!limitsValue.error || !!limitsError;
-    const unknown = provider.connected !== true;
+  let canExpand = false;
+  for (const provider of providers) {
+    const old = limitsOld(provider.observed_at) || provider.status === 'stale' || failed || !!limitsValue.error;
     const partial = ['unknown','unavailable','error'].includes(provider.status);
     const item = limitsNode('section','limits-provider');
     const heading = limitsNode('div','limits-provider-heading');
     heading.append(limitsNode('h3','',String(provider.name || (provider.id === 'codex' ? 'Codex' : 'OpenCode Go')).slice(0,80)));
-    if (unknown || partial || old) heading.append(limitsNode('span','limits-state',unknown ? t("noData") : partial ? t("partialLimits") : t("staleLimits")));
+    if (partial || old) heading.append(limitsNode('span','limits-state',old ? t("staleLimits") : t("partialLimits")));
     item.append(heading);
     const rows = limitsNode('ul','limits-windows');
-    for (const window of (Array.isArray(provider.windows) ? provider.windows : []).slice(0,24)) {
-      if (!window || typeof window !== 'object') continue;
+    const windows = (Array.isArray(provider.windows) ? provider.windows : []).slice(0,24).filter(window => window && typeof window === 'object');
+    const rank = window => hasLimitValue(window) ? window.remaining_percent +
+      (['stale','expired'].includes(window.status) || Date.parse(window.resets_at) <= Date.now() ? 101 : 0) : Infinity;
+    const primary = windows.reduce((best, window) => !best || rank(window) < rank(best) ? window : best, null);
+    canExpand ||= windows.length > 1;
+    for (const window of showAllLimits ? windows : primary ? [primary] : []) {
       const remaining = window.remaining_percent;
-      const known = typeof remaining === 'number' && Number.isFinite(remaining) && remaining >= 0 && remaining <= 100 && !['unknown','unavailable','error'].includes(window.status) && !unknown;
+      const known = hasLimitValue(window);
+      const label = limitLabel(window);
       const reset = limitsDate(window.resets_at);
       const expired = reset && Date.parse(window.resets_at) <= Date.now();
       const stale = old || expired || ['stale','expired'].includes(window.status);
       const row = limitsNode('li','limits-window');
       const line = limitsNode('div','limits-window-line');
-      line.append(limitsNode('span','',String(window.label || t("limit")).slice(0,80)),limitsNode('strong','',known ? t(stale ? "previousRemaining" : "remaining", { value: new Intl.NumberFormat(locale, { style:"percent", maximumFractionDigits:1 }).format(remaining / 100) }) : t("noData")));
+      line.append(limitsNode('span','',label),limitsNode('strong','',known ? t(stale ? "previousRemaining" : "remaining", { value: new Intl.NumberFormat(locale, { style:"percent", maximumFractionDigits:1 }).format(remaining / 100) }) : t("noData")));
       row.append(line);
       if (known && !stale) {
         const track = limitsNode('div','limits-track');
-        track.setAttribute('role','meter');track.setAttribute('aria-label',t("remainingLabel", { label: window.label || t("limit") }));
+        track.setAttribute('role','meter');track.setAttribute('aria-label',t("remainingLabel", { label }));
         track.setAttribute('aria-valuenow',String(remaining));track.setAttribute('aria-valuemin','0');track.setAttribute('aria-valuemax','100');
         const fill = limitsNode('span','');fill.style.width=`${remaining}%`;track.append(fill);row.append(track);
       }
@@ -1530,11 +1581,15 @@ function renderLimits() {
     item.append(limitsNode('p','limits-observed',limitsAge(provider.observed_at)));
     host.append(item);
   }
+  limitsShowAll.hidden = !canExpand;
+  limitsShowAll.setAttribute("aria-expanded", String(showAllLimits));
+  limitsShowAll.textContent = t(showAllLimits ? "showFewerLimits" : "showAllLimits");
   const wallet = limitsValue?.extra_usage;
-  if (wallet && typeof wallet === 'object') {
+  limitsCredits.hidden = typeof wallet?.available_usd !== 'string';
+  if (!limitsCredits.hidden) {
     const raw = wallet.available_usd;
     const known = typeof raw === 'string' && /^\d+\.\d{8}$/.test(raw) && Number.isFinite(Number(raw));
-    const stale = limitsOld(wallet.observed_at) || wallet.stale || wallet.status !== 'known' || !!limitsValue.error || !!limitsError;
+    const stale = limitsOld(wallet.observed_at) || wallet.stale || wallet.status !== 'known' || failed || !!limitsValue.error;
     const line = limitsNode('div','limits-extra-line');
     line.append(limitsNode('span','','OpenCode Extra Usage'),limitsNode('strong','',known ? t(stale ? "balancePrevious" : "balanceAvailable", { value: new Intl.NumberFormat(locale,{style:'currency',currency:'USD'}).format(Number(raw)) }) : t("balanceUnknown")));
     extra.append(line,limitsNode('p','limits-observed',limitsAge(wallet.observed_at)));
@@ -1544,10 +1599,16 @@ function renderLimits() {
 async function refreshLimits() {
   if (!limitsOpen || limitsReading || !window.codexPets.readLimits) return;
   limitsReading = true;
+  const source = provider;
   try {
     const value = await window.codexPets.readLimits();
-    if (value && typeof value === 'object' && !Array.isArray(value)) {limitsValue = value; limitsError = '';}
-    else limitsError = t("limitsPending");
+    if (!managedFile && source !== provider) return;
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const lostSnapshot = (value.error || value.refresh?.state === 'error') && !value.providers?.length && limitsValue;
+      limitsValue = lostSnapshot ? {...limitsValue, error:value.error, refresh:value.refresh} : value;
+      limitsError = '';
+    } else if (limitsValue) limitsError = t("limitsPending");
+    else limitsValue = {providers:[]};
   } catch {
     if (limitsValue) limitsValue = {...limitsValue,error:'console_unavailable'};
     limitsError = t("limitsUnavailable");
@@ -1585,6 +1646,8 @@ function updateLimitsVisibility() {
   syncLimitsPanelVisibility();syncMousePassthrough();
 }
 async function setLimitsOpen(value) {
+  if (value && limitsButton.hidden) return;
+  if (value && settingsOpen) setSettingsOpen(false);
   const generation = ++limitsGeneration;
   const prior = limitsOpen;
   limitsOpen = value === true; limitsChanging = true;
@@ -1631,6 +1694,21 @@ async function requestLimitsRefresh() {
 }
 limitsRefreshButton.addEventListener('click',()=>{void requestLimitsRefresh();});
 limitsButton.addEventListener('click',()=>{void setLimitsOpen(!limitsOpen);});
+limitsShowAll.addEventListener("click", () => { showAllLimits = !showAllLimits; renderLimits(); });
+limitsCredits.addEventListener("toggle", positionLimits);
+limitsPreference.addEventListener("change", async () => {
+  const selected = limitsPreference.value;
+  updateLimitsAvailability();
+  try { await window.codexPets.updateSettings({limitsButtonVisibility:selected}); }
+  catch (error) {
+    if (limitsPreference.value === selected) {
+      const saved = await window.codexPets.getSettings().catch(() => null);
+      limitsPreference.value = saved?.limitsButtonVisibility || "auto";
+      updateLimitsAvailability();
+    }
+    console.error(error);
+  }
+});
 
 document.getElementById("importPet").onclick = async event => {
   const button = event.currentTarget;
@@ -1643,7 +1721,7 @@ document.getElementById("importPet").onclick = async event => {
     pets.splice(0, pets.length, ...await window.codexPets.listPets());
     renderSkinGallery();
     await selectPet(id);
-    if (settingsOpen) positionSettingsPopover();
+    if (settingsOpen) positionLimits();
   } catch {
     message.textContent = t("installPackError");
   } finally {
@@ -1654,16 +1732,23 @@ document.getElementById("closeSettings").onclick = () => { setSettingsOpen(false
 document.getElementById("openStatusTask").onclick = () => { if (consoleActiveTask) openConsoleTask(consoleActiveTask); };
 for (const button of document.querySelectorAll("[data-preview]")) button.onclick = () => playOnce(button.dataset.preview);
 for (const id of ["motionOptions","connectionOptions"]) document.getElementById(id).ontoggle = () => {
-  if (settingsOpen) positionSettingsPopover();
+  if (settingsOpen) positionLimits();
 };
 providerSelect.addEventListener("change", () => {
   const wasManaged = managed;
+  const previousProvider = provider;
   managed = providerSelect.value === "agent-console";
   provider = managed ? "json-status" : providerSelect.value;
+  if (!managedFile && previousProvider !== provider) {
+    if (limitsOpen) void setLimitsOpen(false);
+    limitsValue = null;
+    limitsError = "";
+  }
   if (managed) statusFile = managedFile;
   else if (wasManaged) statusFile = "";
   statusFileInput.value = statusFile;
   updateProviderControls();
+  updateLimitsAvailability();
   window.codexPets.updateSettings({ provider, statusFile, customSource: !managed }).catch(console.error);
   if (refreshTimer) window.clearTimeout(refreshTimer);
   refreshActivity().catch(console.error);
@@ -1678,7 +1763,7 @@ idleAnimationSelect.addEventListener("change", async () => {
   applyIdleAnimationMode(idleAnimationSelect.value);
   const revision = ++idleAnimationRevision;
   idleAnimationStatus.textContent = "";
-  if (settingsOpen) positionSettingsPopover();
+  if (settingsOpen) positionLimits();
   try {
     const saved = await window.codexPets.updateSettings({ idleAnimationMode });
     savedIdleAnimationMode = saved.idleAnimationMode;
@@ -1687,7 +1772,7 @@ idleAnimationSelect.addEventListener("change", async () => {
     if (revision === idleAnimationRevision) {
       applyIdleAnimationMode(savedIdleAnimationMode);
       idleAnimationStatus.textContent = t("saveIdleError");
-      if (settingsOpen) positionSettingsPopover();
+      if (settingsOpen) positionLimits();
     }
   }
 });
@@ -1741,7 +1826,7 @@ petStage.addEventListener("contextmenu", async event => {
   if (contextMenuOpen || (shape && event.target === petElement && !isPointInsideElement(event, petElement))) return;
   contextMenuOpen = true;
   setWindowMousePassthrough(false);
-  try { await window.codexPets.showConsoleMenu({panelOpen:popoverOpen}); }
+  try { await window.codexPets.showConsoleMenu({panelOpen:popoverOpen, limitsAvailable:!limitsButton.hidden}); }
   finally { contextMenuOpen = false; syncMousePassthrough(); }
 });
 petElement.addEventListener("pointerdown", event => {
@@ -1813,7 +1898,6 @@ document.addEventListener("keydown", (event) => {
 window.addEventListener("focus", () => refreshActivity().catch(console.error));
 window.addEventListener("resize", () => {
   fitPetShape();
-  if (settingsOpen) positionSettingsPopover();
   positionLimits();
   syncMousePassthrough();
 });

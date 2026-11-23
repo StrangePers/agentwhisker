@@ -6,6 +6,7 @@ electron_1.contextBridge.exposeInMainWorld("codexPets", {
     readLimits: () => electron_1.ipcRenderer.invoke("limits:read"),
     setLimitsOpen: value => electron_1.ipcRenderer.invoke("limits:set-open", value),
     getLimitsLayout: () => electron_1.ipcRenderer.invoke("limits:get-layout"),
+    setSettingsPanelOpen: value => electron_1.ipcRenderer.invoke("settings:set-panel-open", value),
     onLimitsLayout: callback => {
         const listener = (_event, layout) => callback(layout);
         electron_1.ipcRenderer.on("limits:layout", listener);
