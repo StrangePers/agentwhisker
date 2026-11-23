@@ -15,6 +15,8 @@ Connect **Codex, Claude Code, OpenCode, or Qwen Code** directly from the gear me
 
 On Windows, choose **Codex + OpenCode** to watch both at once. Kitsu’s task bubble shows their active tasks together, with the source next to each task. A task waiting for input takes priority over running tasks.
 
+In Windows v0.1.8, completed tasks are marked **Done** and Kitsu returns to Idle when no other task needs her attention. Unknown or out-of-date statuses are explained in the list. These entries stay out of the active task count.
+
 ## Meet Kitsu
 
 ![Kitsu’s four animations shown side by side: idle, running, waiting for a decision, and error](docs/media/kitsu-states.gif)
