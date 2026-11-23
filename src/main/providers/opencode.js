@@ -119,7 +119,8 @@ async function readOpenCodeServiceSessions(options, limit) {
                     if (shell.status !== "running" || !shell.id) continue;
                     const id = shell.metadata?.sessionID || "shell:" + shell.id;
                     const row = rows.get(id) || {schema:"opencode-v2", connected:true, id,
-                        title:"OpenCode · Shell", directory:shell.cwd, time_updated:shell.time?.started};
+                        title:"OpenCode shell", directory:shell.cwd, time_updated:shell.time?.started};
+                    row.time_updated = Math.max(row.time_updated || 0, shell.time?.started || 0);
                     row.shellRunning = true;
                     rows.set(id, row);
                 }
