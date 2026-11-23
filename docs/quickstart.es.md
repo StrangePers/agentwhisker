@@ -10,6 +10,8 @@ Kitsu es una compañera animada para agentes de programación. Vive en el escrit
 
 Inicia Codex, Claude Code, OpenCode o Qwen Code y elígelo en **Fuente** en los ajustes de Kitsu. También puedes usar un archivo de estado JSON o Agent Console.
 
+En Windows, elige **Codex + OpenCode** para ver las tareas activas de ambos agentes en la misma burbuja. Mantén el servicio local de OpenCode en ejecución para ver sus comandos de shell en curso.
+
 La consulta de límites está disponible con Codex si has iniciado sesión con ChatGPT y con OpenCode si tu espacio tiene una suscripción Go.
 
 Elige **Continua** o **Solo con eventos** en **Animación en reposo**. La descarga gratuita incluye a Kitsu.

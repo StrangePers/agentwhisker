@@ -2,7 +2,7 @@
 
 <h1 align="center">AgentWhisker</h1>
 
-<p align="center">See what your coding agent is doing through Kitsu’s animations.</p>
+<p align="center">See what your coding agents are doing through Kitsu’s animations.</p>
 
 <p align="center"><a href="#downloads-and-compatibility">Downloads</a> · <a href="https://strangepers.github.io/agentwhisker/">Project website</a></p>
 <p align="center"><a href="https://strangepers.github.io/agentwhisker/?lang=en">English</a> · <a href="docs/quickstart.es.md">Español</a> · <a href="docs/quickstart.zh-CN.md">简体中文</a> · <a href="docs/quickstart.hi.md">हिन्दी</a></p>
@@ -12,6 +12,8 @@
 Kitsu rests when your agent is idle, types while it works, waits when a decision is needed, and reacts to errors. She lives in a transparent window on your desktop. Click through the background to keep working in the windows beneath her.
 
 Connect **Codex, Claude Code, OpenCode, or Qwen Code** directly from the gear menu. [Connect your agent](#connect-codex-claude-code-opencode-or-qwen-code).
+
+On Windows, choose **Codex + OpenCode** to watch both at once. Kitsu’s task bubble shows their active tasks together, with the source next to each task. A task waiting for input takes priority over running tasks.
 
 ## Meet Kitsu
 
@@ -55,6 +57,7 @@ Start your coding agent under the same user account as AgentWhisker. Hover over 
 | Source | What AgentWhisker reads |
 |---|---|
 | Codex | Local session records from `CODEX_HOME` or `~/.codex` |
+| Codex + OpenCode | Both local sources in one task list. Keep the local OpenCode service running to see standalone shell commands as they run. |
 | Claude Code | Top-level project session records from `CLAUDE_CONFIG_DIR` or `~/.claude` |
 | OpenCode | The local OpenCode service when it is running, or the local session database in read-only mode |
 | Qwen Code | Compatible local project session records from `QWEN_RUNTIME_DIR`, `QWEN_HOME`, or `~/.qwen` |

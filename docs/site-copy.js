@@ -2,7 +2,7 @@
 
 // English, Spanish, Simplified Chinese, Hindi.
 const siteCopy = {
-  windowsDailyUse: ["In v0.1.6, choose whether to start at sign-in and get quiet alerts when a task needs a reply or fails.","En v0.1.6 puedes activar el inicio al entrar en Windows y los avisos silenciosos cuando una tarea necesita respuesta o falla.","v0.1.6 支持登录 Windows 时自动启动，也可在任务需要回复或失败时发送静默通知。两项功能均可自行开启。","v0.1.6 में आप Windows में साइन इन करते समय ऐप शुरू कर सकते हैं और जवाब की ज़रूरत या कार्य विफल होने पर बिना आवाज़ वाली सूचनाएँ पा सकते हैं।"],
+  windowsMultiAgent: ["New in v0.1.7: choose Codex + OpenCode to see both agents’ tasks in one bubble. Kitsu shows when either agent needs a reply.","Nuevo en v0.1.7: elige Codex + OpenCode para ver las tareas de ambos agentes en una sola burbuja. Kitsu te avisa cuando alguno necesita una respuesta.","v0.1.7 新功能：选择 Codex + OpenCode，在同一个气泡中查看两个智能体的任务。任一智能体需要回复时，Kitsu 都会提示。","v0.1.7 में नया: दोनों एजेंटों के कार्य एक ही बबल में देखने के लिए Codex + OpenCode चुनें। किसी भी एजेंट को जवाब चाहिए तो Kitsu संकेत देती है।"],
   title: ["AgentWhisker · An animated desktop companion","AgentWhisker · Una compañera animada de escritorio","AgentWhisker · 动画桌面伙伴","AgentWhisker · ऐनिमेटेड डेस्कटॉप साथी"],
   description: ["See what your coding agent is doing through Kitsu’s animations.","Descubre qué hace tu agente de programación con las animaciones de Kitsu.","通过 Kitsu 的动画了解编程智能体的状态。","Kitsu के ऐनिमेशन से जानें कि आपका कोडिंग एजेंट क्या कर रहा है।"],
   mainNav: ["Main navigation","Navegación principal","主导航","मुख्य नेविगेशन"],
