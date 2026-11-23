@@ -96,9 +96,11 @@ function emptyActivity(statusFile, now, error) {
 }
 function normalizeItems(items, fallback, now, managed) {
     const source = Array.isArray(items) && items.length > 0 ? items : [fallback];
-    return source.slice(0, 8).map((item, index) => {
+    return (managed ? source : source.slice(0, 8)).map((item, index) => {
         const updatedAt = cleanString(item?.updatedAt) || fallback.updatedAt;
-        const reported = normalizeState(item?.state);
+        const accepted = managed && item?.state === "idle" && typeof item.id === "string" &&
+            item.gestureId?.startsWith?.(item.id + ":") && item.gestureId.endsWith(":accepted");
+        const reported = accepted ? "review" : normalizeState(item?.state);
         const state = expireReportedState(reported, managed ? fallback.updatedAt : updatedAt, now, managed ? 45_000 : undefined);
         const detail = cleanString(item?.detail) || cleanString(item?.message) || fallback.detail;
         return {

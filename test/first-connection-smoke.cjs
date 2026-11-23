@@ -56,7 +56,7 @@ async function run(count, size) {
             await fs.writeFile(status, JSON.stringify({state:"waiting",title:"Example"}));
             await page2.evaluate(() => setSettingsOpen(true));
             await page2.click("#connectionOptions summary");
-            await page2.selectOption("#providerSelect","json-status");
+            await page2.check('#agentChoices input[value="json-status"]');
             await app.evaluate(({dialog}, file) => {
                 dialog.showOpenDialog = async () => ({canceled:false,filePaths:[file]});
             },status);

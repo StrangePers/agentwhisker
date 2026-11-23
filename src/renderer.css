@@ -651,3 +651,7 @@ button:focus-visible, [role=button]:focus-visible { outline: 2px solid #abcaff; 
 
 #importPet { margin-bottom: 10px; }
 #importResult:not(:empty) { padding: 4px 0 10px; }
+
+#agentChoices { margin: 4px 0; padding: 4px 8px; min-width: 0; }
+#agentChoices label { display: flex; align-items: center; gap: 6px; }
+#completedTasks summary { cursor: pointer; font-size: 12px; padding: 5px 0; }

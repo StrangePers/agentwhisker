@@ -2,7 +2,7 @@
 const ranks = {waiting:0, failed:1, running:2, review:3, stale:4, unknown:4, idle:5};
 
 // A slow source may finish after this poll. Its result is retained for the next one.
-function createCombinedReader(readers, budgetMs = 450) {
+function createCombinedReader(readers, budgetMs = 450, source = "codex-opencode") {
     let previousActive;
     const slots = Object.entries(readers).map(([provider, read]) => ({provider, read}));
     return async options => {
@@ -25,16 +25,27 @@ function createCombinedReader(readers, budgetMs = 450) {
                 unavailable.push(provider);
                 continue;
             }
+            const seen = new Set();
             for (const session of snapshot.sessions) {
+                if (seen.has(session.id)) continue;
+                seen.add(session.id);
                 sessions.push({...session, origin:provider, sourceId:session.id, id:provider + ":" + session.id});
             }
         }
-        sessions.sort((a,b) => (ranks[a.state] ?? ranks.unknown) - (ranks[b.state] ?? ranks.unknown) ||
+        // RoleShuttle allocates a worktree under tasks/<task_id>/worktree.
+        // Only fold a worker when the bridge also reports that exact task ID.
+        const parents = new Set(sessions.filter(s => s.origin === "roleshuttle" && !["unknown", "stale"].includes(s.state)).map(s => s.sourceId));
+        const visible = sessions.filter(session => {
+            if (session.origin === "roleshuttle" || typeof session.directory !== "string") return true;
+            const match = session.directory.replaceAll("\\", "/").match(/(?:^|\/)tasks\/([0-9a-f]{32})\/worktree(?:\/|$)/i);
+            return !match || !parents.has(match[1].toLowerCase());
+        });
+        visible.sort((a,b) => (ranks[a.state] ?? ranks.unknown) - (ranks[b.state] ?? ranks.unknown) ||
             Number(b.id === previousActive) - Number(a.id === previousActive) ||
             Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
-        const active = sessions[0] || null;
+        const active = visible[0] || null;
         previousActive = active?.id;
-        return {source:"codex-opencode", active, sessions, unavailable, offline:unavailable.length === slots.length,
+        return {source, active, sessions:visible, unavailable, offline:unavailable.length === slots.length,
             state:active?.state || "idle", petState:active?.petState || "idle", updatedAt:new Date().toISOString()};
     };
 }

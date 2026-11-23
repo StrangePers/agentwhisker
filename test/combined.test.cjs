@@ -28,3 +28,29 @@ test("a delayed reader has at most one outstanding call and cannot hide fresh da
     assert.equal(offline.sessions.length,1);
     assert.equal(offline.offline,false);
 });
+
+test("an exact RoleShuttle task worktree groups workers while an independent session stays visible", async () => {
+    const task = "0123456789abcdef".repeat(2);
+    const parent = snapshot("running", task);
+    parent.sessions.push({...parent.sessions[0]});
+    const worker = snapshot("running", "worker");
+    worker.sessions[0].directory = "D:/state/tasks/" + task + "/worktree/subdir";
+    const independent = {...worker.sessions[0], id:"independent", directory:"D:/Projects/Knowledge"};
+    const read = createCombinedReader({
+        roleshuttle: () => parent,
+        codex: () => ({sessions:[...worker.sessions, independent]}),
+        opencode: () => worker,
+    });
+    assert.deepEqual((await read({})).sessions.map(s => s.id).sort(), ["codex:independent", "roleshuttle:" + task]);
+    parent.sessions = [];
+    assert.equal((await read({})).sessions.length, 3);
+});
+test("agent checkboxes round-trip empty, legacy, single and arbitrary selections", () => {
+    const {decode, encode} = require("../src/agent-selection");
+    const {normalizeSettings} = require("../src/main/settings");
+    for (const [old, expected] of [["desktop", []], ["codex-opencode", ["codex","opencode"]],
+        ["roleshuttle", ["roleshuttle"]], ["agents:claude-code,roleshuttle", ["claude-code","roleshuttle"]]]) {
+        assert.deepEqual(decode(old), expected);
+        assert.deepEqual(decode(normalizeSettings({provider:encode(expected)}).provider), expected);
+    }
+});

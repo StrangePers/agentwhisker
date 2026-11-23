@@ -5,7 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 const { DatabaseSync } = require("node:sqlite");
-const { classifySession } = require("../src/main/providers/codex");
+const { classifySession, readCodexActivity } = require("../src/main/providers/codex");
 const { normalizeClaudeSession, readQwenCodeActivity } = require("../src/main/providers/claude-code");
 const { readOpenCodeActivity } = require("../src/main/providers/opencode");
 const { readJsonStatusActivity } = require("../src/main/providers/json-status");
@@ -179,4 +179,20 @@ test("OpenCode still reads the older session and message tables", async () => {
   db.close();
   const activity = await readOpenCodeActivity({ databasePath, bridgeFile: path.join(dir, "no-bridge"), now });
   assert.equal(activity.state, "review");
+});
+
+test("a fork with inherited metadata stays visible alongside its parent", async t => {
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), "codex-fork-"));
+  t.after(() => fs.rm(home, {recursive:true, force:true}));
+  const dir = path.join(home, "sessions");
+  await fs.mkdir(dir);
+  const parent = "00000000-0000-0000-0000-000000000001";
+  const child = "00000000-0000-0000-0000-000000000002";
+  for (const [suffix, type] of [[parent, "task_complete"], [parent + "_" + child, "task_started"]]) {
+    const records = [{type:"session_meta", payload:{id:parent}}, {timestamp, type:"event_msg", payload:{type}}];
+    await fs.writeFile(path.join(dir, "rollout-" + suffix + ".jsonl"), records.map(r => JSON.stringify(r)).join("\n"));
+  }
+  const snapshot = await readCodexActivity(home, {now});
+  assert.equal(snapshot.active.id, child);
+  assert.deepEqual(Object.fromEntries(snapshot.sessions.map(s => [s.id, s.state])), {[parent]:"review", [child]:"running"});
 });

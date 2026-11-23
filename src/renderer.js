@@ -99,7 +99,8 @@ let livePhase = "";
 let previewFrames = 0;
 let previewState = "";
 let lastGesture = "";
-const providerSelect = document.getElementById("providerSelect");
+const agentChoices = document.getElementById("agentChoices");
+const selection = window.agentSelection;
 const statusFileInput = document.getElementById("statusFileInput");
 const statusFileRow = document.getElementById("statusFileRow");
 const petSizeInput = document.getElementById("petSizeInput");
@@ -653,8 +654,8 @@ async function openConsoleTask(taskId) {
 }
 function renderActivity(activity, offline = false) {
   const active = activity.active;
-  consoleActiveTask = activity.source === "json-status" && isConsoleTask(active) ? active.id : null;
-  const isEmpty = (activity.source === "codex-opencode" && !active) || activity.source === "json-status" && !consoleActiveTask && activity.state === "idle";
+  consoleActiveTask = active?.origin === "roleshuttle" && /^[0-9a-f]{32}$/.test(active.sourceId) ? active.sourceId : activity.source === "json-status" && isConsoleTask(active) ? active.id : null;
+  const isEmpty = (["multi", "codex-opencode"].includes(activity.source) && (!active || active.state === "idle" || active.state === "review")) || activity.source === "json-status" && !consoleActiveTask && activity.state === "idle";
   const live = document.getElementById("liveStatus");
   const showDiagnostic = !managed && provider !== "desktop";
   const needsRetry = offline || activity.invalidState || activity.state === "stale" || activity.state === "unknown";
@@ -667,7 +668,7 @@ function renderActivity(activity, offline = false) {
   if (messageNode.textContent !== messageText) messageNode.textContent = messageText;
   document.getElementById("retrySource").hidden = !showDiagnostic || !needsRetry;
   const other = (activity.sessions || []).filter(item => item.id !== active?.id && item.state === "running").length;
-  const question = liveState === "waiting" && activity.source === "json-status" ? active?.detail : "";
+  const question = liveState === "waiting" && (activity.source === "json-status" || active?.origin === "roleshuttle") ? active?.detail : "";
   const linkDown = managed ? t("consoleDown") : t("sourceDown");
   const caption = offline ? linkDown : question ||
     (activity.state === "running" && livePhase === "checking" ? t("checksRunning") : stateNames[activity.state]) || t("unknown");
@@ -706,7 +707,7 @@ function renderActivity(activity, offline = false) {
   threadBadge.setAttribute("aria-label", t("showNumberedTasks", { count: countLabel }));
   taskCount.textContent = badgeCount ? countLabel : t("tasks");
   taskScope.textContent = badgeCount && sessions.every(session => session.state === "running") ? t("inProgress") : "";
-  const message = offline ? linkDown : !sessions.length
+  const message = offline ? linkDown : sessions.every(s => s.state === "review")
     ? (activity.state === "failed" && active?.title || t("noTasks")) : "";
   if (taskMessage.textContent !== message) taskMessage.textContent = message;
   renderTaskRows(sessions, activity.source);
@@ -719,7 +720,7 @@ function renderTaskRows(sessions, source) {
     const origin = session.origin || source;
     const folder = origin === "codex" && session.canOpenFolder;
     return {
-    id: folder ? session.sourceId || session.id : source === "json-status" && isConsoleTask(session) ? session.id : "",
+    id: folder ? session.sourceId || session.id : origin === "roleshuttle" && /^[0-9a-f]{32}$/.test(session.sourceId) ? session.sourceId : source === "json-status" && isConsoleTask(session) ? session.id : "",
     folder,
     state: session.state,
     title: displayTitle(session, origin),
@@ -732,6 +733,9 @@ function renderTaskRows(sessions, source) {
   const focusedId = sessionList.contains(document.activeElement) && document.activeElement.dataset.taskId;
   const scroll = threadContent.scrollTop;
   sessionList.replaceChildren();
+  const completedList = document.getElementById("completedList");
+  completedList.replaceChildren();
+  document.getElementById("completedTasks").hidden = !rows.some(row => row.state === "review");
   let focusTarget = collapseTasks;
   for (const row of rows) {
     const item = document.createElement("li");
@@ -777,11 +781,13 @@ function renderTaskRows(sessions, source) {
     body.append(detail);
     entry.append(body);
     item.append(entry);
-    sessionList.append(item);
+    (row.state === "review" ? completedList : sessionList).append(item);
   }
   threadContent.scrollTop = scroll;
   if (focusedId) focusTarget.focus({ preventScroll: true });
 }
+
+document.getElementById("completedTasks").addEventListener("toggle", () => { if (popoverOpen) positionLimits(); });
 
 function isConsoleTask(session) {
   return /^[0-9a-f]{32}$/.test(session?.id || "");
@@ -815,6 +821,8 @@ function isBadgeSession(session) {
 }
 
 function labelForSource(source) {
+  if (source === "roleshuttle") return "RoleShuttle";
+  if (source?.startsWith("agents:") || source === "codex-opencode") return selection.decode(source).map(labelForSource).join(" + ");
   if (source === "json-status") return t("statusFile");
   if (source === "desktop") return t("desktop");
   return providerById.get(source)?.label || t("agent");
@@ -847,7 +855,7 @@ async function boot() {
   applyTaskLabel(showTaskLabel);
   statusFile = statusFile || settings.statusFile || "";
   provider = provider || settings.provider || "codex";
-  if (!providerById.has(provider)) provider = "codex";
+  if (!providerById.has(provider) && !selection.decode(provider).length) provider = "codex";
   petSize = petSize || settings.petSize || 112;
   requestedState = initialState || settings.selectedState || "auto";
   pets = await window.codexPets.listPets(codexHome);
@@ -871,7 +879,7 @@ async function boot() {
   const startupPet = pets.find(pet => pet.id === preferred) || pets[0];
   if (startupPet) await selectPet(startupPet.id, { persist: false });
   statusFileInput.value = statusFile;
-  providerSelect.value = managed ? "agent-console" : provider;
+  syncAgentChoices();
   petSizeInput.value = String(petSize);
   applyPetSize(petSize);
   updateProviderControls();
@@ -897,10 +905,10 @@ async function offerFirstConnection() {
     button.type = "button";
     button.textContent = labelForSource(agent);
     button.onclick = () => {
-      providerSelect.value = agent;
-      providerSelect.dispatchEvent(new Event("change"));
+      const input = agentChoices.querySelector(`input[value="${agent}"]`);
+      if (input && !input.checked) input.click();
       document.getElementById("connectionOptions").open = true;
-      providerSelect.focus();
+      agentChoices.querySelector("input")?.focus();
     };
     list.append(button);
   }
@@ -952,14 +960,19 @@ async function loadProviders() {
 }
 
 function renderProviderOptions() {
-  providerSelect.textContent = "";
-  if (managedFile || managed) providerSelect.add(new Option("Agent Console", "agent-console"));
-  for (const item of providers) {
-    const option = document.createElement("option");
-    option.value = item.id;
-    option.textContent = item.id === "json-status" ? t("customFile") : labelForSource(item.id);
-    providerSelect.append(option);
+  for (const id of selection.ids) {
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = id;
+    label.append(input, document.createTextNode(labelForSource(id)));
+    agentChoices.append(label);
   }
+}
+
+function syncAgentChoices() {
+  const selected = managed ? ["roleshuttle"] : selection.decode(provider);
+  for (const input of agentChoices.querySelectorAll("input")) input.checked = selected.includes(input.value);
 }
 
 function refreshDelayForState() {
@@ -1313,7 +1326,7 @@ function clamp(value, min, max) {
 function updateProviderControls() {
   document.getElementById("connectionName").textContent = managed ? "Agent Console" : provider === "json-status" ? t("statusFile") : labelForSource(provider);
 
-  statusFileRow.hidden = managed || !providerById.get(provider)?.requiresStatusFile;
+  statusFileRow.hidden = managed || !selection.decode(provider).includes("json-status");
 }
 
 const limitsButton = document.getElementById("limitsButton");
@@ -1811,7 +1824,7 @@ for (const id of ["motionOptions","connectionOptions"]) document.getElementById(
 document.getElementById("manualConnect").onclick = () => {
   document.getElementById("firstConnection").hidden = true;
   document.getElementById("connectionOptions").open = true;
-  providerSelect.focus();
+  agentChoices.querySelector("input")?.focus();
 };
 document.getElementById("keepDesktop").onclick = () => {
   document.getElementById("firstConnection").hidden = true;
@@ -1819,12 +1832,13 @@ document.getElementById("keepDesktop").onclick = () => {
   petElement.focus();
 };
 document.getElementById("retrySource").onclick = () => refreshActivity().catch(console.error);
-providerSelect.addEventListener("change", () => {
+agentChoices.addEventListener("change", () => {
   document.getElementById("firstConnection").hidden = true;
   const wasManaged = managed;
   const previousProvider = provider;
-  managed = providerSelect.value === "agent-console";
-  provider = managed ? "json-status" : providerSelect.value;
+  const selected = [...agentChoices.querySelectorAll("input:checked")].map(input => input.value);
+  managed = Boolean(managedFile && selected.length === 1 && selected[0] === "roleshuttle");
+  provider = managed ? "json-status" : selection.encode(selected);
   if (!managedFile && previousProvider !== provider) {
     if (limitsOpen) void setLimitsOpen(false);
     limitsValue = null;
@@ -1864,7 +1878,7 @@ idleAnimationSelect.addEventListener("change", async () => {
 });
 document.getElementById("chooseStatusFile").onclick = async () => {
   const file = await window.codexPets.chooseStatusFile();
-  if (file && !managed && provider === "json-status") {
+  if (file && !managed && selection.decode(provider).includes("json-status")) {
     statusFileInput.value = file;
     statusFileInput.dispatchEvent(new Event("change"));
   }

@@ -93,7 +93,8 @@ async function resolveRecentCodexSessions(codexHome, indexEntries, limit = 8) {
     }
     for (const file of await findRecentSessionFiles(codexHome, Math.max(limit * 2, 16))) {
         const meta = await readSessionFileMeta(file.filePath);
-        const id = meta?.id || extractSessionIdFromPath(file.filePath);
+        // Fork journals can begin with the parent session metadata.
+        const id = extractSessionIdFromPath(file.filePath) || meta?.id;
         if (!id)
             continue;
         const previous = byId.get(id) || {};

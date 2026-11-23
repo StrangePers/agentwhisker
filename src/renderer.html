@@ -49,6 +49,7 @@
             <p id="consoleError" role="alert"></p>
             <p id="taskMessage" role="status" data-t="loadingTasks"></p>
             <ul id="sessionList" class="session-list" data-t-label="activeTasks"></ul>
+            <details id="completedTasks" hidden><summary data-t="recentlyCompleted"></summary><ul class="session-list" id="completedList"></ul></details>
           </div>
         </div>
       </section>
@@ -102,7 +103,7 @@
         </div>
         <div class="connection">
           <details id="connectionOptions"><summary><strong id="connectionName" data-t="source"></strong><span data-t="automatic"></span></summary>
-            <div id="sourceOptions"><label><span data-t="source"></span> <select id="providerSelect"></select></label>
+            <div id="sourceOptions"><fieldset id="agentChoices"><legend data-t="trackAgents"></legend></fieldset>
             <div id="statusFileRow"><label><span data-t="statusFile"></span> <input id="statusFileInput" type="text"></label><button type="button" id="chooseStatusFile" data-t="chooseFile"></button></div></div>
           </details>
           <div id="liveStatus" role="status"></div>
@@ -120,6 +121,7 @@
     <script src="./locale.js"></script>
     <script src="./skins.js"></script>
     <script src="./sprite-geometry.js"></script>
+    <script src="./agent-selection.js"></script>
     <script src="./renderer.js"></script>
   </body>
 </html>

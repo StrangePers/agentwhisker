@@ -8,6 +8,8 @@
   const languages = Object.freeze({ en: "English", es: "Español", "zh-CN": "简体中文", hi: "हिन्दी" });
   // Each message follows the language order above. Placeholders are shared across translations.
   const messages = {
+    trackAgents:["Track agents","Seguir agentes","跟踪代理","एजेंट चुनें"],
+    recentlyCompleted:["Recently completed","Finalizadas recientemente","最近完成","हाल ही में पूरे हुए"],
     openProjectFolder:["Open project folder","Abrir carpeta del proyecto","打开项目文件夹","प्रोजेक्ट फ़ोल्डर खोलें"],
     folderUnavailable:["The task ended or its folder is unavailable.","La tarea terminó o su carpeta no está disponible.","任务已结束或文件夹不可用。","कार्य समाप्त हो गया है या उसका फ़ोल्डर उपलब्ध नहीं है।"],
     chooseFile:["Choose file…","Elegir archivo…","选择文件…","फ़ाइल चुनें…"],
