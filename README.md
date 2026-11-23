@@ -42,7 +42,7 @@ The tray menu shows, hides, or quits AgentWhisker. **Idle animation** runs conti
 
 ## Windows sign-in and notifications
 
-In the Windows v0.1.6 candidate, open Kitsu’s settings to start AgentWhisker at sign-in or show quiet notifications when a task needs a reply or fails. Both switches start off. After moving the portable folder, enable sign-in again from its new location. If Agent Console starts the same copy, its companion takes over from the sign-in instance.
+Starting with [v0.1.6 for Windows](../../releases/tag/v0.1.6), open Kitsu’s settings to start AgentWhisker at sign-in or show quiet notifications when a task needs a reply or fails. Both switches start off. After moving the portable folder, enable sign-in again from its new location. If Agent Console starts the same copy, its companion takes over from the sign-in instance.
 
 ## Languages
 
