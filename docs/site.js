@@ -37,7 +37,6 @@ const repository = location.pathname.split("/").filter(Boolean)[0];
 const release = document.querySelector("[data-release-link]");
 if (release && pagesHost && repository && /^[a-z0-9_.-]+$/i.test(repository)) {
   release.href = `https://github.com/${pagesHost[1]}/${repository}/releases/latest`;
-  release.textContent = localize("download");
 }
 const motionPreviews = document.querySelectorAll(".motion-grid video");
 for (const preview of motionPreviews) {

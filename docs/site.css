@@ -61,8 +61,12 @@ figcaption b { display: block; color: var(--paper); font-size: 1rem; }
   border-left: 3px solid var(--orange);
   background: var(--surface);
 }
-.quickstart ol { padding-left: 1.5rem; color: var(--muted); }
-.quickstart li { padding: .4rem 0 .4rem .25rem; }
+.platforms { margin: 0; padding: 0; list-style: none; }
+.platforms li { padding-block: .8rem; }
+.platforms li + li { border-top: 1px solid var(--line); }
+.platforms h3 { margin: 0; font-size: 1.1rem; }
+.platforms p { margin: .2rem 0 0; }
+.platforms .primary { margin-top: .65rem; }
 code { color: var(--orange); overflow-wrap: anywhere; }
 .footer { border-top: 1px solid var(--line); font-size: .9rem; color: var(--muted); }
 .policy { max-width: 68ch; margin-block: 3rem; }

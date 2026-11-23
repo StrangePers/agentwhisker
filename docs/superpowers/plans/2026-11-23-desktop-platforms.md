@@ -1,26 +1,28 @@
 # AgentWhisker desktop platform rollout
 
-**Цель.** Дать пользователям Linux и macOS попробовать Kitsu и прямое подключение агентов. Сохранить текущую проверенную Windows-поставку.
+Bring Kitsu and direct agent connections to more desktops while maintaining the stable Windows download.
 
-## Продукт
+## Product
 
-- [ ] Подготовить Linux x64 в формате `tar.gz` для X11 и macOS Apple Silicon в формате ZIP с `.app`. Нативный Wayland и Intel Mac требуют своих проверок.
-- [ ] Проверить распакованный Windows ZIP и новые архивы отдельно. На каждой платформе проверить запуск, JSON-статус, настройки у края, восстановление окна и закрытие. На графическом стенде проверить прозрачный фон, первый клик и перетаскивание.
-- [ ] Публиковать Linux и macOS с пометкой Preview после проверок. Подпись Developer ID и нотариализация нужны для стабильной поставки macOS. Для Preview указать фактический статус подписи и проверки.
+- Package Linux x64 as a `tar.gz` for X11 and Apple Silicon as a ZIP containing an `.app`. Evaluate native Wayland, Linux ARM, and Intel Mac separately.
+- Test each extracted archive. Cover startup, JSON status, settings near screen edges, hide and restore, and quit. Test transparent-background clicks, the first character click, and dragging in a graphical session.
+- Use GitHub prereleases for early builds. Record the actual signing and test status for each platform. Use Developer ID signing and notarization before promoting macOS to stable.
 
-## Дизайн
+## Design
 
-- [ ] Сохранить анимации Kitsu в центре страницы. Добавить выбор платформы рядом со скачиванием с явными статусами Stable и Preview и понятным названием архитектуры. На узком экране показывать ссылки вертикально.
-- [ ] Обновить описание приложения, README, заметки к выпуску и инструкции сайта на четырёх языках. Рядом со скачиванием указывать требования каждой ОС и проверенные интеграции.
+- Keep Kitsu's animations central to the landing page. Show the platform, architecture, and channel beside each download. Stack the choices on narrow screens.
+- Update the repository description, README, release notes, and localized landing page. Put OS requirements and verified source integrations next to the downloads or in the linked setup instructions.
 
-## Маркетинг
+## Marketing
 
-- [ ] Основное обещание — одним взглядом увидеть, занят ли агент и нужен ли ответ. Лимиты Codex и OpenCode Go помогают решить, можно ли запускать следующую задачу.
-- [ ] Направлять новых пользователей на одну страницу выбора платформы и один раздел загрузок GitHub. Указывать Windows отдельно от пробных сборок, чтобы ожидания совпадали с фактической поддержкой.
-- [ ] После выпуска смотреть на загрузки каждого архива и повторяющиеся проблемы в Issues. Для перехода из Preview нужны подтверждённые установки и отсутствие воспроизводимых блокеров основного сценария.
+- Lead with the ability to see at a glance whether an agent is working or needs attention. Highlight Codex and OpenCode Go limits as a way to decide when to start the next task.
+- Send newcomers to one landing page and GitHub Releases. Mark the Windows release and previews with their respective channels.
+- After release, track download counts by archive and recurring installation or desktop issues on GitHub. Require successful installations and a working core flow before promoting a preview.
 
-## Сборка и проверка
+## Build and acceptance
 
-- [ ] Добавить переносимую упаковку Linux/macOS с закреплённым Electron, теми же файлами Kitsu и лицензиями. Сохранить отдельную Windows-сборку.
-- [ ] В Linux восстановить определение попадания в прозрачное окно и протестировать на X11. В macOS проверить подпись, запуск и меню из архива.
-- [ ] Создать workflow GitHub Actions для проверок и архивов. Зафиксировать SHA-256, версии ОС и границы проверки каждого архива перед выпуском.
+- [x] Package Linux and macOS with the pinned Electron runtime, Kitsu, and existing licenses. Keep the dedicated Windows build.
+- [x] Add a workflow that builds and tests archives on their target OS and generates SHA-256 manifests.
+- [x] Verify the extracted builds on Ubuntu 24.04 X11 and macOS 15 Apple Silicon. Cover application startup, Kitsu’s four animations, JSON status, settings persistence, and the four languages on both. Verify click-through and the first character click at 160 and 360 on Linux.
+- [ ] Validate native macOS desktop clicks, dragging on both preview platforms, opening the Mac archive from a browser download, and live agent connections. Use those results when deciding whether to promote the previews.
+- [x] Publish Linux and macOS as [v0.1.3-preview.1](https://github.com/StrangePers/agentwhisker/releases/tag/v0.1.3-preview.1). Download both public assets without authentication and verify their SHA-256 hashes. Check the live platform picker in all four languages at 320, 390, and 1360 px. Windows v0.1.2 remains the latest stable release.
