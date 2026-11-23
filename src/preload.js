@@ -28,6 +28,7 @@ electron_1.contextBridge.exposeInMainWorld("codexPets", {
     getSettings: () => electron_1.ipcRenderer.invoke("settings:get"),
     updateSettings: (patch) => electron_1.ipcRenderer.invoke("settings:update", patch),
     setIgnoreMouseEvents: (ignore, options) => electron_1.ipcRenderer.send("window:set-ignore-mouse-events", ignore, options),
+    onForwardedPointer: callback => electron_1.ipcRenderer.on("window:forwarded-pointer", (_event, point) => callback(point)),
     dragWindow: (phase, x, y) => electron_1.ipcRenderer.send("window:drag", phase, x, y),
     moveWindowBy: (deltaX, deltaY) => electron_1.ipcRenderer.send("window:move-by", deltaX, deltaY),
 });

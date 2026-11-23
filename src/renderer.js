@@ -942,6 +942,11 @@ function updateMousePassthrough(event) {
   syncMousePassthrough();
 }
 
+window.codexPets.onForwardedPointer?.(point => {
+  lastPointer = point;
+  syncMousePassthrough();
+});
+
 function isActionPoint(point) {
   if (threadBadge.classList.contains("pinned") && isPointInsideElement(point, threadBadge)) return true;
   return actionsVisible && [threadBadge, limitsButton, settingsButton].some(button => isPointInsideElement(point, button));

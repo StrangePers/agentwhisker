@@ -1,0 +1,98 @@
+name: Desktop previews
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'scripts/build-desktop.cjs'
+      - 'test/**'
+      - 'package*.json'
+      - '.github/workflows/desktop-previews.yml'
+  push:
+    branches: ['codex/desktop-platforms']
+    paths:
+      - 'src/**'
+      - 'scripts/build-desktop.cjs'
+      - 'test/**'
+      - 'package*.json'
+      - '.github/workflows/desktop-previews.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux
+          - os: macos-15
+            platform: macos
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 18
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22.14.0'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm install --no-save --package-lock=false playwright@1.65.1
+      - run: npm run build:desktop
+      - name: Prepare a clean Linux archive
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb openbox xcompmgr xdotool
+          version=$(node -p 'require("./package.json").version')
+          mkdir -p release unpacked
+          archive="AgentWhisker-$version-linux-x64-x11-preview.tar.gz"
+          tar -czf "release/$archive" -C dist AgentWhisker-linux-x64
+          (cd release && sha256sum "$archive" > SHA256SUMS-linux.txt)
+          tar -xf "release/$archive" -C unpacked
+          echo "AW_EXE=$PWD/unpacked/AgentWhisker-linux-x64/AgentWhisker" >> "$GITHUB_ENV"
+      - name: Check X11 launch, transparency and input
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          xvfb-run -a -s '-screen 0 1920x1080x24' bash -eu -c '
+            openbox >/tmp/agentwhisker-openbox.log 2>&1 &
+            xcompmgr >/tmp/agentwhisker-compositor.log 2>&1 &
+            node test/desktop-smoke.cjs "$AW_EXE"
+            node test/x11-smoke.cjs "$AW_EXE"
+            node test/locale-smoke.cjs "$AW_EXE"
+          '
+      - name: Prepare a clean Apple Silicon archive
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          version=$(node -p 'require("./package.json").version')
+          mkdir -p release unpacked
+          archive="AgentWhisker-$version-macos-arm64-preview.zip"
+          ditto -c -k --sequesterRsrc --keepParent dist/AgentWhisker-darwin-arm64/AgentWhisker.app "release/$archive"
+          (cd release && shasum -a 256 "$archive" > SHA256SUMS-macos.txt)
+          ditto -x -k "release/$archive" unpacked
+          app="$PWD/unpacked/AgentWhisker.app"
+          codesign --verify --deep --strict "$app"
+          test "$(lipo -archs "$app/Contents/MacOS/AgentWhisker")" = arm64
+          echo "AW_EXE=$app/Contents/MacOS/AgentWhisker" >> "$GITHUB_ENV"
+      - name: Check macOS launch and renderer
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          node test/desktop-smoke.cjs "$AW_EXE"
+          node test/locale-smoke.cjs "$AW_EXE"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: agentwhisker-${{ matrix.platform }}-preview
+          path: release/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7

@@ -14,6 +14,7 @@ function findCodexExecutable() {
     const vendor = path.join(`codex-win32-${process.arch}`, "vendor", `${arch}-pc-windows-msvc`, "bin", "codex.exe");
     const directories = [...(process.env.PATH || "").split(path.delimiter),
         ...(windows && process.env.APPDATA ? [path.join(process.env.APPDATA, "npm")] : []),
+        ...(process.platform === "darwin" ? ["/opt/homebrew/bin", "/usr/local/bin"] : []),
         path.join(os.homedir(), ".local", "bin")];
     for (const dir of directories.filter(directory => path.isAbsolute(directory))) {
         const candidates = windows ? [path.join(dir, "codex.exe"),

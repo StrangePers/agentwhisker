@@ -9,9 +9,11 @@
   "scripts": {
     "start": "electron .",
     "build:win": "node scripts/build-win.cjs",
+    "build:desktop": "node scripts/build-desktop.cjs",
     "test": "node --test test/*.test.cjs"
   },
   "devDependencies": {
+    "@electron/packager": "20.3.0",
     "electron": "45.4.1"
   }
 }

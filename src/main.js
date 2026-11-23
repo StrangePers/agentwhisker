@@ -50,6 +50,7 @@ const { findCodexExecutable, createCodexLimits } = require("./main/providers/cod
 const { createOpenCodeLimits } = require("./main/providers/opencode-limits.cjs");
 const { listCharacters, importCharacter } = require("./main/character-library.cjs");
 const limitsWindows = new WeakMap();
+const linuxPointerForwarders = new WeakMap();
 let appTray = null;
 function parseArgs(argv) {
     const args = {
@@ -154,7 +155,7 @@ async function createWindow(args) {
         transparent: true,
         alwaysOnTop: true,
         resizable: true,
-        skipTaskbar: true,
+        skipTaskbar: process.platform !== "linux",
         hasShadow: false,
         backgroundColor: "#00000000",
         webPreferences: {
@@ -165,6 +166,10 @@ async function createWindow(args) {
     });
     win.setAlwaysOnTop(true, "floating");
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    if (process.platform === "linux") {
+        const {createLinuxPointerForwarder} = require("./main/linux-pointer.cjs");
+        linuxPointerForwarders.set(win, createLinuxPointerForwarder(win, electron_1.screen));
+    }
     let limitsBridge = null;
     const codexExecutable = managedFile ? null : findCodexExecutable();
     const nativeLimits = new Map();
@@ -248,7 +253,7 @@ function updateTrayMenu(win) {
     if (!appTray || !win || win.isDestroyed()) return;
     appTray.setContextMenu(electron_1.Menu.buildFromTemplate([
         { label: t("showApp"), click: () => win.show() },
-        { label: t("hideApp"), click: () => win.hide() },
+        { label: t("hideApp"), click: () => hideWindow(win) },
         { type: "separator" },
         { label: t("quitApp"), click: () => electron_1.app.quit() },
     ]));
@@ -309,7 +314,7 @@ function registerIpcHandlers() {
                 openConsole().catch(() => send({action:"error", message:t("openConsoleAgain")}));
               }},
             { type: "separator" },
-            { label: t("hideApp"), click: () => win.hide() },
+            { label: t("hideApp"), click: () => hideWindow(win) },
             { label: t("quitApp"), click: () => electron_1.app.quit() },
         ]);
         win.setIgnoreMouseEvents(false);
@@ -317,7 +322,7 @@ function registerIpcHandlers() {
     });
     electron_1.ipcMain.on("console:hide", event => {
         const win = electron_1.BrowserWindow.fromWebContents(event.sender);
-        if (win && !win.isDestroyed()) { win.setSkipTaskbar(false); win.hide(); }
+        if (win && !win.isDestroyed()) { win.setSkipTaskbar(false); hideWindow(win); }
     });
     electron_1.ipcMain.on("console:quit", () => electron_1.app.quit());
     electron_1.ipcMain.handle("pets:list", () => listCharacters());
@@ -348,6 +353,7 @@ function registerIpcHandlers() {
         if (!win || win.isDestroyed())
             return;
         win.setIgnoreMouseEvents(Boolean(ignore), ignore ? options : undefined);
+        linuxPointerForwarders.get(win)?.(Boolean(ignore && options?.forward));
     });
     const grabs = new WeakMap();
     electron_1.ipcMain.on("window:drag", (event, phase, x, y) => {
@@ -373,8 +379,16 @@ function registerIpcHandlers() {
         if (Number.isFinite(dx) && Number.isFinite(dy)) windowLayout.setBasePosition(Math.round(x + dx), Math.round(y + dy));
     });
 }
+function hideWindow(win) {
+    if (process.platform === "linux") win.minimize();
+    else win.hide();
+}
+
 if (process.versions.electron && process.type === "browser") {
-    const startupArgs = parseArgs(process.argv.slice(2));
+    if (process.platform === "linux" && !electron_1.app.commandLine.hasSwitch("ozone-platform")) {
+        electron_1.app.commandLine.appendSwitch("ozone-platform", "x11");
+    }
+    const startupArgs = parseArgs(process.argv.slice(process.defaultApp ? 2 : 1));
     if (startupArgs.userDataDir)
         electron_1.app.setPath("userData", path.resolve(startupArgs.userDataDir));
     if (!electron_1.app.requestSingleInstanceLock()) { electron_1.app.quit(); } else {
