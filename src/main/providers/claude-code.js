@@ -105,7 +105,10 @@ function readConversation(records, lastWrite, now) {
     const timestamp = Date.parse(latest?.timestamp);
     const age = +now - (Number.isFinite(timestamp) ? timestamp : lastWrite);
     const lifetime = state === "waiting" ? WAITING_MS : state === "running" ? ACTIVE_MS : TERMINAL_MS;
-    return { latest, state: age <= lifetime ? state : "idle" };
+    if (age <= lifetime) return { latest, state };
+    const stale = state === "running" && age <= TERMINAL_MS ||
+        state === "waiting" && age <= 45 * 60_000;
+    return { latest, state: stale ? "stale" : "idle" };
 }
 
 function normalizeClaudeState(record, updatedAt, now) {

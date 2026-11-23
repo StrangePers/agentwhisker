@@ -335,6 +335,8 @@ button.session-item:hover { background: #fff3e912; }
 
 .session-dot.waiting { background: #f5af49; }
 .session-dot.failed { background: #ff7474; }
+.session-dot.review { background: #8ec8aa; }
+.session-dot.stale, .session-dot.unknown { background: #a2a6af; }
 
 .session-body {
   display: grid;

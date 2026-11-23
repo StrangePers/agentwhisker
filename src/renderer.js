@@ -21,7 +21,6 @@ const STATE_FRAMES = {
   failed: rowFrames(5, 8, 140, 240),
   waiting: rowFrames(6, 6, 150, 260),
   running: rowFrames(7, 6, 120, 220),
-  review: rowFrames(8, 6, 150, 280),
 };
 const ACTIVE_REFRESH_MS = 3000;
 const IDLE_REFRESH_MS = 8000;
@@ -93,7 +92,7 @@ let taskPanelResize = null;
 const settingsPopover = document.getElementById("settingsPopover");
 const managedFile = params.get("managedFile") || "";
 let managed = params.get("managed") === "1";
-const stateNames = Object.fromEntries(["idle", "running", "waiting", "failed", "review"].map(state => [state, t(state)]));
+const stateNames = Object.fromEntries(["idle", "running", "waiting", "failed", "review", "stale", "unknown"].map(state => [state, t(state)]));
 stateNames.waving = t("accepted");
 let liveState = "idle";
 let livePhase = "";
@@ -508,6 +507,7 @@ function startKitsuFailed() {
 }
 
 function startAnimation(state) {
+  if (state === "review" || state === "stale" || state === "unknown") state = "idle";
   if (timer !== null) window.clearTimeout(timer);
   timer = null;
   resumeIdle = null;
@@ -599,10 +599,17 @@ async function refreshActivity() {
   refreshInFlight = true;
   try {
     const sourceAtStart = [provider,statusFile,managed];
-    const activity = await window.codexPets.readActivity({ codexHome, statusFile, provider })
+    const activity = await window.codexPets.readActivity({ codexHome, statusFile, provider, managed })
       .catch(() => ({source:sourceAtStart[0], state:"idle", error:true, sessions:[]}));
     if (sourceAtStart[0] !== provider || sourceAtStart[1] !== statusFile || sourceAtStart[2] !== managed) return;
-    const offline = Boolean(activity.error || activity.offline || (managed && (activity.invalidState || !Number.isFinite(Date.parse(activity.updatedAt)) || Date.now() - Date.parse(activity.updatedAt) > 45000)));
+    const offline = Boolean(activity.error || activity.offline);
+    const staleBridge = managed && (!Number.isFinite(Date.parse(activity.updatedAt)) || Date.now() - Date.parse(activity.updatedAt) > 45000);
+    if (!offline && staleBridge) {
+      activity.state = "stale";
+      activity.petState = "idle";
+      activity.sessions = activity.sessions.map(session => ({...session, state:"stale", petState:"idle", gestureId:undefined}));
+      activity.active = activity.sessions[0] || null;
+    }
     liveState = offline ? "idle" : activity.petState || "idle";
     livePhase = activity.active?.phase || "";
     renderActivity(activity, offline);
@@ -650,10 +657,11 @@ function renderActivity(activity, offline = false) {
   const isEmpty = (activity.source === "codex-opencode" && !active) || activity.source === "json-status" && !consoleActiveTask && activity.state === "idle";
   const live = document.getElementById("liveStatus");
   const showDiagnostic = !managed && provider !== "desktop";
-  const needsRetry = offline || activity.invalidState;
-  const diagnostic = needsRetry ? (provider === "json-status" ? "checkJson" :
+  const needsRetry = offline || activity.invalidState || activity.state === "stale" || activity.state === "unknown";
+  const diagnostic = offline ? (provider === "json-status" ? "checkJson" :
       activity.missingSource ? "startSession" : "unreadableSource") :
-    !activity.sessions?.length ? "startSession" : liveState === "idle" ? "connectedIdle" : "";
+    activity.state === "stale" || activity.state === "unknown" ? activity.state :
+    !activity.sessions?.length ? "startSession" : activity.state === "idle" ? "connectedIdle" : "";
   const messageNode = document.getElementById("sourceDiagnostic");
   const messageText = showDiagnostic && diagnostic ? t(diagnostic) : "";
   if (messageNode.textContent !== messageText) messageNode.textContent = messageText;
@@ -661,7 +669,8 @@ function renderActivity(activity, offline = false) {
   const other = (activity.sessions || []).filter(item => item.id !== active?.id && item.state === "running").length;
   const question = liveState === "waiting" && activity.source === "json-status" ? active?.detail : "";
   const linkDown = managed ? t("consoleDown") : t("sourceDown");
-  const caption = offline ? linkDown : question || (livePhase === "checking" ? t("checksRunning") : stateNames[liveState]) || t("running");
+  const caption = offline ? linkDown : question ||
+    (activity.state === "running" && livePhase === "checking" ? t("checksRunning") : stateNames[activity.state]) || t("unknown");
   live.textContent = (activity.unavailable?.length ? activity.unavailable.map(labelForSource).join(" + ") + " · " + t("sourceDown") + " / " : "") + caption + (question && other ? ` · ${t("otherTasks", { count: new Intl.NumberFormat(locale).format(other) })}` : "");
   live.dataset.offline = String(offline);
   document.getElementById("openStatusTask").hidden = offline || !consoleActiveTask || !["waiting","failed"].includes(liveState);
@@ -681,9 +690,10 @@ function renderActivity(activity, offline = false) {
   }
   const isDesktop = activity.source === "desktop";
   const sessions = offline || isDesktop ? [] : (activity.sessions || [])
-    .filter(session => isBadgeSession(session) && (!managed || isConsoleTask(session)))
-    .sort((left, right) => Number(right.state === "waiting") - Number(left.state === "waiting"));
-  const badgeCount = sessions.length;
+    .filter(session => session.state !== "idle" && (!managed || isConsoleTask(session)))
+    .sort((left, right) => Number(right.state === "waiting") - Number(left.state === "waiting") ||
+      Number(isBadgeSession(right)) - Number(isBadgeSession(left)));
+  const badgeCount = sessions.filter(isBadgeSession).length;
   busyTasks = sessions.some(session => session.state === "running" || session.state === "waiting");
   updateBusyBubble();
   lastActivityState = activity.state || "idle";
@@ -696,7 +706,7 @@ function renderActivity(activity, offline = false) {
   threadBadge.setAttribute("aria-label", t("showNumberedTasks", { count: countLabel }));
   taskCount.textContent = badgeCount ? countLabel : t("tasks");
   taskScope.textContent = badgeCount && sessions.every(session => session.state === "running") ? t("inProgress") : "";
-  const message = offline ? linkDown : !badgeCount
+  const message = offline ? linkDown : !sessions.length
     ? (activity.state === "failed" && active?.title || t("noTasks")) : "";
   if (taskMessage.textContent !== message) taskMessage.textContent = message;
   renderTaskRows(sessions, activity.source);
@@ -788,6 +798,7 @@ function isInternalId(value) {
 }
 
 function taskDetail(session, source) {
+  if (["review", "stale", "unknown"].includes(session.state)) return t(session.state);
   const detail = source === "json-status" && session.detail !== "Status file activity" ? session.detail : "";
   if (session.state === "waiting") return detail ? t("answerWithDetail", { detail }) : t("answerNeeded");
   if (session.state === "failed") return detail || t("failed");

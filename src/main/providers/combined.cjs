@@ -1,5 +1,5 @@
 "use strict";
-const ranks = {waiting:0, failed:1, running:2, review:3, idle:4};
+const ranks = {waiting:0, failed:1, running:2, review:3, stale:4, unknown:4, idle:5};
 
 // A slow source may finish after this poll. Its result is retained for the next one.
 function createCombinedReader(readers, budgetMs = 450) {
@@ -29,7 +29,7 @@ function createCombinedReader(readers, budgetMs = 450) {
                 sessions.push({...session, origin:provider, sourceId:session.id, id:provider + ":" + session.id});
             }
         }
-        sessions.sort((a,b) => ranks[a.state] - ranks[b.state] ||
+        sessions.sort((a,b) => (ranks[a.state] ?? ranks.unknown) - (ranks[b.state] ?? ranks.unknown) ||
             Number(b.id === previousActive) - Number(a.id === previousActive) ||
             Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
         const active = sessions[0] || null;

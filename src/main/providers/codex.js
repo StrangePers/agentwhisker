@@ -281,7 +281,11 @@ function readTurn(records, fallbackTime, now) {
     }
     if (state === "running" && pendingInput.size > 0) state = "waiting";
     const window = state === "waiting" ? WAITING_WINDOW_MS : state === "running" ? ACTIVE_WINDOW_MS : REVIEW_WINDOW_MS;
-    return { state: +now - changedAt <= window ? state : "idle", latestPayload };
+    const age = +now - changedAt;
+    if (age <= window) return { state, latestPayload };
+    const stale = state === "running" && age <= WAITING_WINDOW_MS ||
+        state === "waiting" && age <= 45 * 60_000;
+    return { state: stale ? "stale" : "idle", latestPayload };
 }
 
 function isWorkStartRecord(record) {
@@ -429,8 +433,6 @@ function mapActivityToPetState(state) {
         return "waiting";
     if (state === "failed")
         return "failed";
-    if (state === "review")
-        return "review";
     return "idle";
 }
 function parseJsonLine(line) {

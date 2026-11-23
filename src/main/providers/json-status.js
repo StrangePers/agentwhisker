@@ -35,10 +35,11 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VALID_STATES = void 0;
 exports.readJsonStatusActivity = readJsonStatusActivity;
-exports.normalizeState = normalizeState;
 const fs = __importStar(require("node:fs/promises"));
 const path = __importStar(require("node:path"));
 const codex_1 = require("./codex");
+const {normalizeState, expireReportedState} = require("./shared");
+exports.normalizeState = normalizeState;
 exports.VALID_STATES = new Set(["idle", "running", "waiting", "failed", "review"]);
 async function readJsonStatusActivity(statusFile, options = {}) {
     const now = options.now || new Date();
@@ -58,20 +59,13 @@ async function readJsonStatusActivity(statusFile, options = {}) {
     const title = cleanString(parsed?.title) || "External agent";
     const detail = cleanString(parsed?.detail) || cleanString(parsed?.message) || "Status file activity";
     const updatedAt = cleanString(parsed?.updatedAt) || new Date(stat.mtimeMs).toISOString();
-    const sessions = normalizeItems(parsed?.items, { title, detail, state, updatedAt });
-    const active = sessions[0] || {
-        id: "json-status",
-        title,
-        detail,
-        state,
-        petState: (0, codex_1.mapActivityToPetState)(state),
-        updatedAt,
-        latestEvent: detail,
-    };
+    const sessions = normalizeItems(parsed?.items, { title, detail, state, updatedAt }, now, options.managed);
+    const active = sessions.find(item => item.state === "waiting") ||
+        sessions.find(item => item.state === "running") || sessions.find(item => item.state === "failed") || sessions[0];
     return {
         source: "json-status",
         statusFile: resolved,
-        invalidState: !exports.VALID_STATES.has(parsed?.state),
+        invalidState: state === "unknown",
         offline: parsed?.offline === true,
         state: active.state,
         petState: (0, codex_1.mapActivityToPetState)(active.state),
@@ -100,10 +94,12 @@ function emptyActivity(statusFile, now, error) {
         error,
     };
 }
-function normalizeItems(items, fallback) {
+function normalizeItems(items, fallback, now, managed) {
     const source = Array.isArray(items) && items.length > 0 ? items : [fallback];
     return source.slice(0, 8).map((item, index) => {
-        const state = normalizeState(item?.state);
+        const updatedAt = cleanString(item?.updatedAt) || fallback.updatedAt;
+        const reported = normalizeState(item?.state);
+        const state = expireReportedState(reported, managed ? fallback.updatedAt : updatedAt, now, managed ? 45_000 : undefined);
         const detail = cleanString(item?.detail) || cleanString(item?.message) || fallback.detail;
         return {
             id: cleanString(item?.id) || `json-status-${index}`,
@@ -113,14 +109,10 @@ function normalizeItems(items, fallback) {
             phase: cleanString(item?.phase),
             gestureId: cleanString(item?.gestureId),
             petState: (0, codex_1.mapActivityToPetState)(state),
-            updatedAt: cleanString(item?.updatedAt) || fallback.updatedAt,
+            updatedAt,
             latestEvent: detail,
         };
     });
-}
-function normalizeState(value) {
-    const state = typeof value === "string" ? value.toLowerCase() : "idle";
-    return exports.VALID_STATES.has(state) ? state : "idle";
 }
 function cleanString(value) {
     return typeof value === "string" && value.trim() ? value.trim() : null;

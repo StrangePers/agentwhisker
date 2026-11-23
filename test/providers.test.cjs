@@ -8,6 +8,7 @@ const { DatabaseSync } = require("node:sqlite");
 const { classifySession } = require("../src/main/providers/codex");
 const { normalizeClaudeSession, readQwenCodeActivity } = require("../src/main/providers/claude-code");
 const { readOpenCodeActivity } = require("../src/main/providers/opencode");
+const { readJsonStatusActivity } = require("../src/main/providers/json-status");
 
 const now = new Date("2026-11-23T12:00:00Z");
 const timestamp = now.toISOString();
@@ -28,6 +29,62 @@ test("Codex recognizes a completed tool invocation as activity within an open tu
   assert.equal(codex({ type: "task_started" }, { type: "error" }), "failed");
   assert.equal(codex({ type: "task_started" }, { type: "turn_aborted" }), "idle");
   assert.equal(codex({ type: "task_started" }, { type: "task_complete" }), "review");
+});
+
+test("Codex renders completion and expired activity in the idle pose", () => {
+  const read = (type, minutes) => {
+    const at = new Date(+now - minutes * 60_000).toISOString();
+    return classifySession({id:"thread", updated_at:at}, null, {
+      mtimeMs:Date.parse(at), records:[{payload:{type}, timestamp:at}],
+    }, now);
+  };
+  for (const [type, minutes, state] of [["task_complete",2,"review"], ["task_started",2,"stale"], ["task_started",40,"idle"]]) {
+    const session = read(type, minutes);
+    assert.equal(session.state, state);
+    assert.equal(session.petState, "idle");
+  }
+});
+
+test("JSON reports unknown and stale states without hiding a healthy task", async t => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(),"aw-status-fallbacks-"));
+  t.after(() => fs.rm(dir,{recursive:true,force:true}));
+  const file = path.join(dir,"status.json");
+  async function read(payload, options = {}) {
+    await fs.writeFile(file, JSON.stringify(payload));
+    return readJsonStatusActivity(file, {now,...options});
+  }
+  const live = await read({state:"provider_new",updatedAt:timestamp,items:[
+    {state:"provider_new",id:"unknown"},
+    {state:"running",id:"old",updatedAt:oldTime},
+    {state:"running",id:"live"},
+  ]});
+  assert.equal(live.active.id,"live");
+  assert.deepEqual(live.sessions.map(s=>[s.state,s.petState]),[
+    ["unknown","idle"], ["stale","idle"], ["running","running"],
+  ]);
+  for (const state of ["review","inReview"]) {
+    const done = await read({state,updatedAt:timestamp});
+    assert.equal(done.state,"review");
+    assert.equal(done.petState,"idle");
+  }
+  const managed = await read({state:"running",updatedAt:timestamp,items:[{state:"running",updatedAt:oldTime}]},{managed:true});
+  assert.equal(managed.state,"running");
+});
+
+test("An expired or unfamiliar OpenCode bridge status uses a neutral pose", async t => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(),"aw-bridge-fallbacks-"));
+  t.after(() => fs.rm(dir,{recursive:true,force:true}));
+  const bridgeFile = path.join(dir,"status.json");
+  for (const [state,updatedAt,expected] of [
+    ["retrying_new",timestamp,"unknown"],
+    ["waiting",new Date(+now-6*60_000).toISOString(),"stale"],
+    ["review",timestamp,"review"],
+  ]) {
+    await fs.writeFile(bridgeFile,JSON.stringify({sessions:[{id:"test",state,updatedAt}]}));
+    const activity = await readOpenCodeActivity({bridgeFile,runner:async()=>[],now});
+    assert.equal(activity.state,expected);
+    assert.equal(activity.petState,"idle");
+  }
 });
 
 test("Codex waits on an unresolved request across bookkeeping and resumes after its result", () => {

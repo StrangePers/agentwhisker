@@ -70,7 +70,7 @@ function aggregateActivity(source, sessions, now = new Date(), extra = {}) {
         ...extra,
     };
 }
-function normalizeState(value, updatedAt, now = new Date()) {
+function normalizeState(value) {
     const state = typeof value === "string" ? value.toLowerCase() : "";
     if (exports.VALID_STATES.has(state))
         return state;
@@ -80,15 +80,17 @@ function normalizeState(value, updatedAt, now = new Date()) {
         return "running";
     if (["blocked", "needs-input", "waiting", "paused"].includes(state))
         return "waiting";
-    if (["complete", "completed", "done", "finished", "success", "succeeded", "review"].includes(state))
+    if (["complete", "completed", "done", "finished", "success", "succeeded", "inreview", "in_review"].includes(state))
         return "review";
-    const ageMs = now.getTime() - new Date(updatedAt || 0).getTime();
-    if (Number.isFinite(ageMs) && ageMs < 3 * 60 * 1000)
-        return "running";
-    if (Number.isFinite(ageMs) && ageMs < 30 * 60 * 1000)
-        return "review";
-    return "idle";
+    return "unknown";
 }
+function expireReportedState(state, timestamp, now, activeMs = 5 * 60_000) {
+    if (state === "idle") return state;
+    const age = +now - Date.parse(timestamp);
+    const lifetime = state === "review" || state === "failed" ? 20 * 60_000 : activeMs;
+    return Number.isFinite(age) && age >= -60_000 && age <= lifetime ? state : "stale";
+}
+exports.expireReportedState = expireReportedState;
 function normalizeCommandSessions(output, source, now = new Date()) {
     const rows = Array.isArray(output) ? output : Array.isArray(output?.sessions) ? output.sessions : [];
     return rows
@@ -120,7 +122,7 @@ function normalizeCommandSession(item, index, source, now) {
         cleanString(item.summary) ||
         cleanString(item.model) ||
         `${source} session activity`;
-    const state = normalizeState(item.state || item.status, updatedAt, now);
+    const state = expireReportedState(normalizeState(item.state || item.status), updatedAt, now);
     return {
         id: cleanString(item.id) || cleanString(item.sessionID) || cleanString(item.sessionId) || `${source}-${index}`,
         title,

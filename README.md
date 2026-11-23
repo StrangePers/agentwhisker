@@ -85,7 +85,7 @@ AgentWhisker starts in standalone mode. Pick a JSON status file in settings or p
 .\AgentWhisker.exe --status-file=C:\example\status.json
 ```
 
-A status file can contain `{"state":"running","title":"Building the project"}`. The four values are `idle`, `running`, `waiting`, and `failed`.
+A status file can contain `{"state":"running","title":"Building the project"}`. Use `idle`, `running`, `waiting`, or `failed` to set Kitsu’s pose. `review` marks a finished task as Done while Kitsu returns to Idle. Unrecognized and expired statuses use the Idle pose and show an explanation in the task list. For a standalone status file, refresh active entries at least every five minutes while they are current. AgentWhisker uses `updatedAt` when provided and the file modification time otherwise.
 
 With [RoleShuttle](https://github.com/StrangePers/RoleShuttle), your chat can delegate work to an implementer and a reviewer while Kitsu shows the current task state on your desktop. Run `roleshuttle companion --state running` and select the JSON path it prints in AgentWhisker’s settings. When the chat needs your answer, the controller can write `--state waiting` to the same file. [Connection guide](https://github.com/StrangePers/RoleShuttle/blob/v0.1.0a14/docs/integrations.md#agentwhisker).
 

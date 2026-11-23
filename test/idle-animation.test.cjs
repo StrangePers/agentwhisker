@@ -167,6 +167,7 @@ test("Kitsu Running at a 269px physical cell uses decoded HD strips in order", a
   assert.equal(evaluate("displayedCell"), 72);
   assert.equal(pet.style["--typing-strip-image"], `url("${strip(18)}")`);
   evaluate('setState("review")');
+  assert.equal(evaluate("currentState"), "idle");
   assert.equal(showsStrip(), false);
   assert.equal(pet.style["--typing-strip-image"], undefined);
   decodes.get(strip(19))();

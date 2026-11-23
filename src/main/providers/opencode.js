@@ -173,11 +173,13 @@ function normalizeV2Session(item, now) {
     let state = "idle";
     if (item.waiting) state = "waiting";
     else if (item.shellRunning) state = "running";
-    else if (Number.isFinite(busyAt) && (!Number.isFinite(idleAt) || busyAt > idleAt) &&
-        (item.connected || recent <= 90_000)) state = "running";
+    else if (Number.isFinite(busyAt) && (!Number.isFinite(idleAt) || busyAt > idleAt)) {
+        state = item.connected || recent <= 90_000 ? "running" : recent <= 30 * 60_000 ? "stale" : "idle";
+    }
     else if (Number.isFinite(idleAt) && +now - idleAt <= 20 * 60_000) {
         if (item.idle_outcome === "failed") state = "failed";
-        if (item.idle_outcome === "succeeded") state = "review";
+        else if (item.idle_outcome === "succeeded") state = "review";
+        else if (item.idle_outcome && !["interrupted", "cancelled", "canceled", "aborted"].includes(item.idle_outcome)) state = "unknown";
     }
     return {
         id: item.id,
@@ -254,16 +256,8 @@ function normalizeOpenCodeBridgeSession(item, index, now) {
     };
 }
 function normalizeBridgeState(value, updatedAt, now) {
-    const state = (0, shared_1.cleanString)(value)?.toLowerCase() || "";
-    if (state === "running" || state === "waiting") {
-        const ageMs = now.getTime() - new Date(updatedAt).getTime();
-        if (Number.isFinite(ageMs) && ageMs > 30 * 60 * 1000)
-            return "idle";
-        if (Number.isFinite(ageMs) && ageMs > 5 * 60 * 1000)
-            return "review";
-        return state;
-    }
-    return (0, shared_1.normalizeState)(state, updatedAt, now);
+    if (+now - Date.parse(updatedAt) > 30 * 60_000) return "idle";
+    return (0, shared_1.expireReportedState)((0, shared_1.normalizeState)(value), updatedAt, now);
 }
 function mergeOpenCodeSessions(preferredSessions, fallbackSessions) {
     const merged = [];
@@ -288,6 +282,8 @@ function mergeOpenCodeSessions(preferredSessions, fallbackSessions) {
 function mergePreferredSession(session, fallback) {
     if (!fallback)
         return session;
+    if (session.state === "stale" || session.state === "unknown")
+        return fallback.state === "idle" && !fallback.shellRunning ? session : fallback;
     if (fallback.shellRunning && session.state !== "waiting")
         return {...fallback, title: fallback.title || session.title};
     const next = isGenericBridgeRunning(session) && isTerminalOpenCodeState(fallback.state)
@@ -352,6 +348,8 @@ function normalizeDbSession(item, index, now) {
     };
 }
 function classifyOpenCodeState(message, part, updatedAt, now) {
+    if (+now - Date.parse(updatedAt) > 30 * 60_000)
+        return "idle";
     if (message?.error || part?.error)
         return recentTerminalState("failed", updatedAt, now);
     if (part?.type === "step-finish") {
@@ -359,15 +357,15 @@ function classifyOpenCodeState(message, part, updatedAt, now) {
             return recentTerminalState("failed", updatedAt, now);
         if (part.reason === "stop")
             return recentTerminalState("review", updatedAt, now);
-        return (0, shared_1.normalizeState)("running", updatedAt, now);
+        return (0, shared_1.expireReportedState)("running", updatedAt, now);
     }
     if (message?.time?.completed || message?.finish === "stop")
         return recentTerminalState("review", updatedAt, now);
     if (message?.role === "assistant" && !message?.time?.completed)
-        return (0, shared_1.normalizeState)("running", updatedAt, now);
+        return (0, shared_1.expireReportedState)("running", updatedAt, now);
     if (message?.role === "user")
-        return (0, shared_1.normalizeState)("running", updatedAt, now);
-    return (0, shared_1.normalizeState)(null, updatedAt, now);
+        return (0, shared_1.expireReportedState)("running", updatedAt, now);
+    return "unknown";
 }
 function recentTerminalState(state, updatedAt, now) {
     const ageMs = now.getTime() - new Date(updatedAt).getTime();
