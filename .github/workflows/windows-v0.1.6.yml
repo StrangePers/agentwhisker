@@ -1,0 +1,45 @@
+name: Build the Windows v0.1.6 release draft
+
+on:
+  push:
+    branches: ['codex/windows-release-v0.1.6-ci']
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: refs/tags/v0.1.6
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '22.14.0'
+          package-manager-cache: false
+      - name: Test and package the tagged Windows source
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne 'a4b3940b3d1c4e2381f20585674320ce5567263e') { throw 'Unexpected tag commit' }
+          npm ci
+          npm test
+          npm run build:win
+          New-Item -ItemType Directory -Path release | Out-Null
+          $name = 'AgentWhisker-0.1.6-win-x64.zip'
+          $zip = "release/$name"
+          tar.exe -acf $zip -C dist AgentWhisker-win32-x64
+          if ($LASTEXITCODE -ne 0) { throw 'ZIP creation failed' }
+          $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLowerInvariant()
+          "$hash  $name" | Set-Content release/SHA256SUMS.txt -Encoding ascii
+          Get-Content release/SHA256SUMS.txt
+      - name: Attach assets to the release draft
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ((gh release view v0.1.6 --repo $env:GITHUB_REPOSITORY --json isDraft --jq '.isDraft') -ne 'true') { throw 'Expected an unpublished release draft' }
+          gh release upload v0.1.6 release/AgentWhisker-0.1.6-win-x64.zip release/SHA256SUMS.txt --clobber --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE -ne 0) { throw 'Asset upload failed' }
