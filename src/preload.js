@@ -19,6 +19,7 @@ electron_1.contextBridge.exposeInMainWorld("codexPets", {
         return () => electron_1.ipcRenderer.removeListener("console:command", listener);
     },
     openConsole: (taskId) => electron_1.ipcRenderer.invoke("console:open", taskId),
+    openProjectFolder: (id) => electron_1.ipcRenderer.invoke("project:open-folder", id),
     hidePet: () => electron_1.ipcRenderer.send("console:hide"),
     quitPet: () => electron_1.ipcRenderer.send("console:quit"),
     importPet: () => electron_1.ipcRenderer.invoke("pets:import"),

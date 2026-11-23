@@ -104,6 +104,7 @@ async function resolveRecentCodexSessions(codexHome, indexEntries, limit = 8) {
             thread_name: previous.thread_name || meta?.thread_name || meta?.title || titleFromCwd(meta?.cwd) || titleFromSessionPath(file.filePath),
             updated_at: fileUpdatedAt,
             sessionPath: file.filePath,
+            directory: meta?.cwd,
             sortTime: file.stat.mtimeMs,
         });
     }
@@ -247,6 +248,7 @@ function classifySession(entry, sessionPath, sample, now) {
         state: state,
         petState: mapActivityToPetState(state),
         sessionPath,
+        directory: entry.directory,
         lastWriteAgeMs,
         latestEvent: summarizePayload(latestPayload),
     };

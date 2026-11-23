@@ -57,6 +57,8 @@ Start your coding agent under the same user account as AgentWhisker. Hover over 
 
 OpenCode's running service exposes pending questions and permission requests. The transcript sources can show a question when the agent records its input request. Start a session in the agent to populate its source. T3Code remains experimental.
 
+When a Codex task lists **Open project folder** in Kitsu’s task bubble, click its row to open the session’s working directory. The action requires an available local folder. Agent Console tasks can open their chat. The other standalone sources show task status only.
+
 ## Subscription limits
 
 Starting with [v0.1.3](../../releases/tag/v0.1.3), choose **Codex** or **OpenCode** under **Source**, then open the limits panel next to Kitsu.

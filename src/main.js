@@ -277,7 +277,7 @@ function openConsole(taskId) {
         });
     });
 }
-function registerIpcHandlers() {
+function registerIpcHandlers(startupArgs = {}) {
     electron_1.ipcMain.handle("limits:read", async (event, ...args) => {
         if (args.length) throw new TypeError("readLimits accepts no arguments");
         return limitsForEvent(event).readSnapshot();
@@ -334,7 +334,23 @@ function registerIpcHandlers() {
         return importCharacter(result.filePaths[0]);
     });
     electron_1.ipcMain.handle("providers:list", async () => (0, providers_1.listProviders)());
-    electron_1.ipcMain.handle("activity:read", async (_event, options) => (0, activity_1.readActivity)(options));
+    const {projectFolder} = require("./main/project-folder.cjs");
+    electron_1.ipcMain.handle("activity:read", async (_event, options) => {
+        const activity = await (0, activity_1.readActivity)(options);
+        if (activity.source === "codex") {
+            await Promise.all(activity.sessions.map(async session => {
+                session.canOpenFolder = Boolean(await projectFolder(session));
+            }));
+        }
+        return activity;
+    });
+    electron_1.ipcMain.handle("project:open-folder", async (_event, sessionId) => {
+        if (typeof sessionId !== "string" || !sessionId) return false;
+        const activity = await (0, activity_1.readActivity)({provider:"codex", codexHome:getCodexHome(startupArgs)});
+        const session = activity.sessions.find(item => item.id === sessionId);
+        const folder = session && await projectFolder(session);
+        return Boolean(folder) && (await electron_1.shell.openPath(folder)) === "";
+    });
     electron_1.ipcMain.handle("status:choose-file", async event => {
         const win = electron_1.BrowserWindow.fromWebContents(event.sender);
         const result = await electron_1.dialog.showOpenDialog(win, {properties:["openFile"], filters:[{name:"JSON", extensions:["json"]}]});
@@ -388,7 +404,7 @@ if (process.versions.electron && process.type === "browser") {
     if (startupArgs.userDataDir)
         electron_1.app.setPath("userData", path.resolve(startupArgs.userDataDir));
     if (!electron_1.app.requestSingleInstanceLock()) { electron_1.app.quit(); } else {
-    registerIpcHandlers();
+    registerIpcHandlers(startupArgs);
     electron_1.app.whenReady().then(() => createWindow(startupArgs));
     electron_1.app.on("window-all-closed", () => electron_1.app.quit());
     }

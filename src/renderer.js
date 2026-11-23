@@ -640,7 +640,7 @@ async function openConsoleTask(taskId) {
 }
 function renderActivity(activity, offline = false) {
   const active = activity.active;
-  consoleActiveTask = isConsoleTask(active) ? active.id : null;
+  consoleActiveTask = activity.source === "json-status" && isConsoleTask(active) ? active.id : null;
   const isEmpty = activity.source === "json-status" && !consoleActiveTask && activity.state === "idle";
   const live = document.getElementById("liveStatus");
   const showDiagnostic = !managed && provider !== "desktop";
@@ -700,7 +700,8 @@ function renderActivity(activity, offline = false) {
 
 function renderTaskRows(sessions, source) {
   const rows = sessions.map(session => ({
-    id: isConsoleTask(session) ? session.id : "",
+    id: (source === "json-status" && isConsoleTask(session)) || (source === "codex" && session.canOpenFolder) ? session.id : "",
+    folder: source === "codex" && session.canOpenFolder,
     state: session.state,
     title: displayTitle(session, source),
     detail: taskDetail(session, source),
@@ -719,7 +720,19 @@ function renderTaskRows(sessions, source) {
     if (row.id) {
       entry.type = "button";
       entry.dataset.taskId = row.id;
-      entry.addEventListener("click", () => openConsoleTask(row.id));
+      if (row.folder) {
+        entry.title = t("openProjectFolder");
+        entry.setAttribute("aria-label", row.title + " · " + entry.title);
+        entry.addEventListener("click", async () => {
+          const error = document.getElementById("consoleError");
+          error.textContent = "";
+          const opened = await window.codexPets.openProjectFolder(row.id).catch(() => false);
+          if (!opened) {
+            error.textContent = t("folderUnavailable");
+            await refreshActivity().catch(console.error);
+          }
+        });
+      } else entry.addEventListener("click", () => openConsoleTask(row.id));
       if (row.id === focusedId) focusTarget = entry;
     }
 
@@ -739,7 +752,7 @@ function renderTaskRows(sessions, source) {
 
     const detail = document.createElement("span");
     detail.className = "session-detail";
-    detail.textContent = row.detail;
+    detail.textContent = row.folder ? row.detail + " · " + t("openProjectFolder") : row.detail;
     detail.title = row.detail;
     body.append(detail);
     entry.append(body);
