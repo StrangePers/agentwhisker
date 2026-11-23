@@ -1,5 +1,9 @@
-# Character artwork
+# Kitsu artwork terms
 
-For written permissions, contact ChronoCat Labs at mail@chronocatlabs.com.
+Applies to distributions beginning with v0.1.4.
 
-Kitsu is included with the free AgentWhisker application for personal use. The MIT license applies to software code. Character art, atlases and animation frames are licensed separately. Additional character packs are delivered separately for personal use by the purchaser. Redistribution or resale of the artwork on its own requires permission.
+You may use Kitsu in the official AgentWhisker app for free at home or at work. You may show the app in screenshots, videos, reviews, tutorials and livestreams, including monetized coverage.
+
+Please share the official download link. Hosting or redistributing the archive containing Kitsu, or distributing the artwork as separate assets, requires prior written permission. Selling Kitsu artwork, animation frames, sprite sheets or adaptations requires prior written permission, including sales through apps, paid bundles or subscriptions.
+
+The MIT license applies to the software code. Additional character packs have their own terms. For written permissions, contact ChronoCat Labs. For permission requests, email mail@chronocatlabs.com.
