@@ -593,7 +593,8 @@ async function refreshActivity() {
   refreshInFlight = true;
   try {
     const sourceAtStart = [provider,statusFile,managed];
-    const activity = await window.codexPets.readActivity({ codexHome, statusFile, provider });
+    const activity = await window.codexPets.readActivity({ codexHome, statusFile, provider })
+      .catch(() => ({source:sourceAtStart[0], state:"idle", error:true, sessions:[]}));
     if (sourceAtStart[0] !== provider || sourceAtStart[1] !== statusFile || sourceAtStart[2] !== managed) return;
     const offline = Boolean(activity.error || activity.offline || (managed && (activity.invalidState || !Number.isFinite(Date.parse(activity.updatedAt)) || Date.now() - Date.parse(activity.updatedAt) > 45000)));
     liveState = offline ? "idle" : activity.petState || "idle";
@@ -642,6 +643,15 @@ function renderActivity(activity, offline = false) {
   consoleActiveTask = isConsoleTask(active) ? active.id : null;
   const isEmpty = activity.source === "json-status" && !consoleActiveTask && activity.state === "idle";
   const live = document.getElementById("liveStatus");
+  const showDiagnostic = !managed && provider !== "desktop";
+  const needsRetry = offline || activity.invalidState;
+  const diagnostic = needsRetry ? (provider === "json-status" ? "checkJson" :
+      activity.missingSource ? "startSession" : "unreadableSource") :
+    !activity.sessions?.length ? "startSession" : liveState === "idle" ? "connectedIdle" : "";
+  const messageNode = document.getElementById("sourceDiagnostic");
+  const messageText = showDiagnostic && diagnostic ? t(diagnostic) : "";
+  if (messageNode.textContent !== messageText) messageNode.textContent = messageText;
+  document.getElementById("retrySource").hidden = !showDiagnostic || !needsRetry;
   const other = (activity.sessions || []).filter(item => item.id !== active?.id && item.state === "running").length;
   const question = liveState === "waiting" && activity.source === "json-status" ? active?.detail : "";
   const linkDown = managed ? t("consoleDown") : t("sourceDown");
@@ -831,6 +841,29 @@ async function boot() {
   await initializeLimits({...settings, limitsPanelOpen:!limitsButton.hidden && settings.limitsPanelOpen});
   await refreshActivity();
   if (params.get("showSettings") === "1") setSettingsOpen(true);
+  if (params.get("firstConnection") === "1") void offerFirstConnection();
+}
+
+async function offerFirstConnection() {
+  const panel = document.getElementById("firstConnection");
+  panel.hidden = false;
+  setSettingsOpen(true);
+  const agents = await window.codexPets.discoverSources(codexHome).catch(() => []);
+  if (panel.hidden) return;
+  document.getElementById("discoveryMessage").textContent = t(agents.length ? "pickAgent" : "noAgent");
+  const list = document.getElementById("detectedAgents");
+  for (const agent of agents) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = labelForSource(agent);
+    button.onclick = () => {
+      providerSelect.value = agent;
+      providerSelect.dispatchEvent(new Event("change"));
+      document.getElementById("connectionOptions").open = true;
+      providerSelect.focus();
+    };
+    list.append(button);
+  }
 }
 
 function initializeLanguage(preference) {
@@ -1734,7 +1767,19 @@ for (const button of document.querySelectorAll("[data-preview]")) button.onclick
 for (const id of ["motionOptions","connectionOptions"]) document.getElementById(id).ontoggle = () => {
   if (settingsOpen) positionLimits();
 };
+document.getElementById("manualConnect").onclick = () => {
+  document.getElementById("firstConnection").hidden = true;
+  document.getElementById("connectionOptions").open = true;
+  providerSelect.focus();
+};
+document.getElementById("keepDesktop").onclick = () => {
+  document.getElementById("firstConnection").hidden = true;
+  setSettingsOpen(false);
+  petElement.focus();
+};
+document.getElementById("retrySource").onclick = () => refreshActivity().catch(console.error);
 providerSelect.addEventListener("change", () => {
+  document.getElementById("firstConnection").hidden = true;
   const wasManaged = managed;
   const previousProvider = provider;
   managed = providerSelect.value === "agent-console";
@@ -1776,6 +1821,13 @@ idleAnimationSelect.addEventListener("change", async () => {
     }
   }
 });
+document.getElementById("chooseStatusFile").onclick = async () => {
+  const file = await window.codexPets.chooseStatusFile();
+  if (file && !managed && provider === "json-status") {
+    statusFileInput.value = file;
+    statusFileInput.dispatchEvent(new Event("change"));
+  }
+};
 statusFileInput.addEventListener("change", () => {
   statusFile = statusFileInput.value.trim();
   window.codexPets.updateSettings({ statusFile }).catch(console.error);

@@ -8,6 +8,18 @@
   const languages = Object.freeze({ en: "English", es: "Español", "zh-CN": "简体中文", hi: "हिन्दी" });
   // Each message follows the language order above. Placeholders are shared across translations.
   const messages = {
+    chooseFile:["Choose file…","Elegir archivo…","选择文件…","फ़ाइल चुनें…"],
+    connectAgent:["Connect your coding agent","Conecta tu agente","连接你的编程智能体","अपना कोडिंग एजेंट जोड़ें"],
+    findingAgents:["Looking for local agents…","Buscando agentes locales…","正在查找本地智能体…","स्थानीय एजेंट खोजे जा रहे हैं…"],
+    pickAgent:["Choose an agent to follow.","Elige un agente para seguirlo.","选择要关注的智能体。","जिस एजेंट को देखना है उसे चुनें।"],
+    noAgent:["No agents found. You can still choose a source manually.","No se encontraron agentes. Puedes elegir una fuente manualmente.","未发现智能体。你仍可手动选择来源。","कोई एजेंट नहीं मिला। आप स्रोत स्वयं चुन सकते हैं।"],
+    chooseSource:["Choose another source","Elegir otra fuente","选择其他来源","दूसरा स्रोत चुनें"],
+    keepDesktop:["Keep Kitsu on my desktop","Dejar a Kitsu en mi escritorio","仅将 Kitsu 留在桌面","Kitsu को डेस्कटॉप पर रखें"],
+    retrySource:["Check again","Volver a comprobar","重新检查","फिर जाँचें"],
+    startSession:["Start a session in your agent to see activity here.","Inicia una sesión en tu agente para ver su actividad aquí.","在智能体中启动会话即可查看活动。","गतिविधि देखने के लिए एजेंट में एक सत्र शुरू करें।"],
+    unreadableSource:["Could not read this source. Check its location and try again.","No se pudo leer esta fuente. Revisa su ubicación y vuelve a intentarlo.","无法读取此来源。请检查位置并重试。","स्रोत पढ़ा नहीं जा सका। उसका स्थान जाँचें और फिर प्रयास करें।"],
+    checkJson:["Check the JSON file path and status data.","Comprueba la ruta y los datos del archivo JSON.","请检查 JSON 文件路径和状态数据。","JSON फ़ाइल का पथ और स्थिति डेटा जाँचें।"],
+    connectedIdle:["Connected. No active task.","Conectado. No hay tareas activas.","已连接。没有活动任务。","जुड़ा है। कोई सक्रिय कार्य नहीं है।"],
     system: ["System language","Idioma del sistema","跟随系统","सिस्टम की भाषा"],
     language: ["Language","Idioma","语言","भाषा"],
     selectLanguageError: ["Could not save the language. Try again.","No se pudo guardar el idioma. Inténtalo de nuevo.","无法保存语言设置，请重试。","भाषा सहेजी नहीं जा सकी। फिर कोशिश करें।"],

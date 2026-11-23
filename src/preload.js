@@ -25,6 +25,8 @@ electron_1.contextBridge.exposeInMainWorld("codexPets", {
     listPets: (codexHome) => electron_1.ipcRenderer.invoke("pets:list", codexHome),
     listProviders: () => electron_1.ipcRenderer.invoke("providers:list"),
     readActivity: (options) => electron_1.ipcRenderer.invoke("activity:read", options),
+    discoverSources: (codexHome) => electron_1.ipcRenderer.invoke("sources:discover", codexHome),
+    chooseStatusFile: () => electron_1.ipcRenderer.invoke("status:choose-file"),
     getSettings: () => electron_1.ipcRenderer.invoke("settings:get"),
     updateSettings: (patch) => electron_1.ipcRenderer.invoke("settings:update", patch),
     setIgnoreMouseEvents: (ignore, options) => electron_1.ipcRenderer.send("window:set-ignore-mouse-events", ignore, options),

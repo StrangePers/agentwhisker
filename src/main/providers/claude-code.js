@@ -30,8 +30,12 @@ async function readQwenCodeActivity(options = {}) {
 async function readProjectActivity(source, label, home, options) {
     const now = options.now || new Date();
     const root = path.resolve(options.projectsRoot || path.join(home, "projects"));
-    if (!(await fs.stat(root).catch(() => null))?.isDirectory()) {
-        return aggregateActivity(source, [], now, { error: label + " session directory is unavailable" });
+    const stat = await fs.stat(root).catch(error => {
+        if (error.code === "ENOENT") return null;
+        throw error;
+    });
+    if (!stat?.isDirectory()) {
+        return {...aggregateActivity(source, [], now, { error: label + " session directory is unavailable" }), missingSource: !stat};
     }
     const files = await findRecentFiles(root, (_file, name, directory) =>
         name.endsWith(".jsonl") && path.dirname(directory) === root, 8, 1);

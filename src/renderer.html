@@ -56,6 +56,13 @@
       <section id="settingsPopover" class="settings-popover" data-t-label="petSettings" aria-hidden="true">
         <header class="pet-heading"><h2 data-t="pet"></h2><button id="closeSettings" data-t-label="closeSettings">×</button></header>
         <div class="settings-content">
+        <section id="firstConnection" hidden>
+          <strong data-t="connectAgent"></strong>
+          <p id="discoveryMessage" role="status" data-t="findingAgents"></p>
+          <div id="detectedAgents"></div>
+          <button type="button" id="manualConnect" data-t="chooseSource"></button>
+          <button type="button" id="keepDesktop" data-t="keepDesktop"></button>
+        </section>
         <div class="skin-heading" data-t="character"></div>
         <div id="skinGallery" class="skin-gallery" role="group" data-t-label="chooseCharacter"></div>
         <button id="importPet" type="button" data-t="installCharacterAction"></button>
@@ -87,9 +94,11 @@
         <div class="connection">
           <details id="connectionOptions"><summary><strong id="connectionName" data-t="source"></strong><span data-t="automatic"></span></summary>
             <div id="sourceOptions"><label><span data-t="source"></span> <select id="providerSelect"></select></label>
-            <label id="statusFileRow"><span data-t="statusFile"></span> <input id="statusFileInput" type="text"></label></div>
+            <div id="statusFileRow"><label><span data-t="statusFile"></span> <input id="statusFileInput" type="text"></label><button type="button" id="chooseStatusFile" data-t="chooseFile"></button></div></div>
           </details>
           <div id="liveStatus" role="status"></div>
+          <div id="sourceDiagnostic" role="status"></div>
+          <button type="button" id="retrySource" hidden data-t="retrySource"></button>
           <button id="openStatusTask" hidden data-t="openTask"></button>
         </div>
         <details id="motionOptions"><summary data-t="previewAnimations"></summary>

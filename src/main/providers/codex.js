@@ -49,9 +49,13 @@ const SESSION_HEAD_BYTES = 64 * 1024;
 const SESSION_TAIL_BYTES = 96 * 1024;
 async function readCodexActivity(codexHome, options = {}) {
     const now = options.now || new Date();
-    if (!codexHome || !(await fs.stat(codexHome).catch(() => null))?.isDirectory()) {
+    const root = !codexHome ? null : await fs.stat(codexHome).catch(error => {
+        if (error.code === "ENOENT") return null;
+        throw error;
+    });
+    if (!root?.isDirectory()) {
         return { source: "codex", state: "idle", petState: "idle", active: null, sessions: [],
-            updatedAt: now.toISOString(), error: "Codex data directory is unavailable" };
+            updatedAt: now.toISOString(), missingSource: !root, error: "Codex data directory is unavailable" };
     }
     const sessionIndexPath = path.join(codexHome, "session_index.jsonl");
     const entries = await readSessionIndex(sessionIndexPath);

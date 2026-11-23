@@ -133,6 +133,8 @@ async function createWindow(args) {
     const selectedPetId = args.pet || settings.selectedPetId;
     const selected = pets.find((pet) => pet.id === selectedPetId) || pets.find(pet => pet.id === "kitsu") || null;
     const managedFile = process.env.AGENT_CONSOLE_PET_PYTHON && args.statusFile || "";
+    const firstConnection = !args.provider && !args.statusFile && !process.env.AGENT_CONSOLE_PET_PYTHON &&
+        !require("node:fs").existsSync(settingsPath);
     const restoreSource = managedFile && settings.customSource;
     const effectiveSettings = await (0, settings_1.updateSettings)(settingsPath, {
         selectedPetId: selected?.id || settings.selectedPetId,
@@ -216,6 +218,7 @@ async function createWindow(args) {
     electron_1.app.once("before-quit", () => clearInterval(stopTimer));
     win.loadFile(path.join(__dirname, "renderer.html"), {
         query: {
+            firstConnection: firstConnection ? "1" : "",
             codexHome,
             locale: labels.locale,
             statusFile: effectiveSettings.statusFile,
@@ -332,6 +335,13 @@ function registerIpcHandlers() {
     });
     electron_1.ipcMain.handle("providers:list", async () => (0, providers_1.listProviders)());
     electron_1.ipcMain.handle("activity:read", async (_event, options) => (0, activity_1.readActivity)(options));
+    electron_1.ipcMain.handle("status:choose-file", async event => {
+        const win = electron_1.BrowserWindow.fromWebContents(event.sender);
+        const result = await electron_1.dialog.showOpenDialog(win, {properties:["openFile"], filters:[{name:"JSON", extensions:["json"]}]});
+        return result.canceled ? null : result.filePaths[0];
+    });
+    electron_1.ipcMain.handle("sources:discover", (_event, codexHome) =>
+        require("./main/providers/discover.cjs").discoverSources(codexHome));
     electron_1.ipcMain.handle("settings:get", async () => (0, settings_1.readSettings)(path.join(electron_1.app.getPath("userData"), "settings.json")));
     electron_1.ipcMain.handle("settings:update", async (event, patch) => {
         if (patch && Object.hasOwn(patch, "provider")) limitsForEvent(event).setSource((0, providers_1.normalizeProvider)(patch.provider));
@@ -374,7 +384,7 @@ function registerIpcHandlers() {
     });
 }
 if (process.versions.electron && process.type === "browser") {
-    const startupArgs = parseArgs(process.argv.slice(2));
+    const startupArgs = parseArgs(process.argv.slice(process.defaultApp ? 2 : 1));
     if (startupArgs.userDataDir)
         electron_1.app.setPath("userData", path.resolve(startupArgs.userDataDir));
     if (!electron_1.app.requestSingleInstanceLock()) { electron_1.app.quit(); } else {

@@ -29,7 +29,7 @@ Connect **Codex, Claude Code, OpenCode, or Qwen Code** directly from the gear me
 
 1. Download the portable **Windows x64** ZIP from [GitHub Releases](../../releases).
 2. Extract the whole archive and open **AgentWhisker.exe**.
-3. Start your coding agent, hover over Kitsu, and choose the agent under **Source** in the gear menu.
+3. On first launch, click your agent in Kitsu’s settings. Start a session to see her respond. You can also choose a source manually or keep Kitsu on your desktop. Open the gear menu to change the source later.
 
 The tray menu shows, hides, or quits AgentWhisker. **Idle animation** runs continuously by default. Switch it to **Only on events** to keep Kitsu still between tasks. The free download includes Kitsu. Additional characters can be imported from a `.whiskerpack` file in settings.
 
