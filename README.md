@@ -2,9 +2,9 @@
 
 <h1 align="center">AgentWhisker</h1>
 
-<p align="center">A fox-eared desktop companion for coding agents.</p>
+<p align="center">See what your coding agent is doing through Kitsu’s animations.</p>
 
-<p align="center"><a href="../../releases/latest">Windows downloads</a> · <a href="https://strangepers.github.io/agentwhisker/">Project website</a></p>
+<p align="center"><a href="#downloads-and-compatibility">Downloads</a> · <a href="https://strangepers.github.io/agentwhisker/">Project website</a></p>
 <p align="center"><a href="https://strangepers.github.io/agentwhisker/?lang=en">English</a> · <a href="docs/quickstart.es.md">Español</a> · <a href="docs/quickstart.zh-CN.md">简体中文</a> · <a href="docs/quickstart.hi.md">हिन्दी</a></p>
 
 ![Kitsu typing on the Windows desktop beside a list of two sample agent tasks](docs/media/desktop-preview.jpg?v=0.1.1)
@@ -17,7 +17,15 @@ Connect **Codex, Claude Code, OpenCode, or Qwen Code** directly from the gear me
 
 ![Kitsu’s four animations shown side by side: idle, running, waiting for a decision, and error](docs/media/kitsu-states.gif)
 
-## Get started
+## Downloads and compatibility
+
+| Platform | Channel | Download or build |
+|---|---|---|
+| Windows x64 | Stable | [Portable ZIP from GitHub Releases](../../releases/latest) |
+| Linux x64 with X11 | Preview | [`tar.gz` from GitHub Releases](../../releases/tag/v0.1.3-preview.1) |
+| macOS on Apple Silicon | Preview | [ZIP containing the `.app` from GitHub Releases](../../releases/tag/v0.1.3-preview.1) |
+
+### Get started on Windows
 
 1. Download the portable **Windows x64** ZIP from [GitHub Releases](../../releases).
 2. Extract the whole archive and open **AgentWhisker.exe**.
@@ -38,7 +46,7 @@ AgentWhisker is available in English, Spanish, Simplified Chinese, and Hindi. It
 
 ## Connect Codex, Claude Code, OpenCode, or Qwen Code
 
-Start your coding agent under the same Windows user account. Hover over Kitsu, open the gear menu, expand **Source**, and choose your agent. AgentWhisker reads the agent's local session state. The standalone connection works with the agent and AgentWhisker installed.
+Start your coding agent under the same user account as AgentWhisker. Hover over Kitsu, open the gear menu, expand **Source**, and choose your agent. AgentWhisker reads the agent's local session state. The source descriptions below reflect the tested Windows release.
 
 | Source | What AgentWhisker reads |
 |---|---|
@@ -48,6 +56,17 @@ Start your coding agent under the same Windows user account. Hover over Kitsu, o
 | Qwen Code | Compatible local project session records from `QWEN_RUNTIME_DIR`, `QWEN_HOME`, or `~/.qwen` |
 
 OpenCode's running service exposes pending questions and permission requests. The transcript sources can show a question when the agent records its input request. Start a session in the agent to populate its source. T3Code remains experimental.
+
+## Subscription limits
+
+In [v0.1.3 Preview](../../releases/tag/v0.1.3-preview.1), choose **Codex** or **OpenCode** under **Source**, then open the limits panel next to Kitsu.
+
+- **Codex** reads limits through the installed Codex CLI when you are signed in with ChatGPT.
+- **OpenCode Go** reads the allowance for the workspace connected to the running OpenCode service.
+
+The panel shows the window with the least remaining usage for each provider. Expand the list to see the other windows. Saved values are marked when they become outdated. Set **Limits button** to **Hide** to keep the control off the desktop. Agent Console can supply its own limits and credits.
+
+The gear opens settings beside Kitsu. Near the edge of a screen, the panel can open on the other side.
 
 ## Connect a JSON status file
 
@@ -84,7 +103,18 @@ node test/desktop-smoke.cjs $appExe
 node test/tasks-smoke.cjs $appExe
 ```
 
-Windows 11 x64 is the tested platform. macOS and Linux are planned.
+Build a preview from tag `v0.1.3-preview.1` on a native Linux x64 or Apple Silicon host with Node.js 22.13 or newer.
+
+```sh
+npm ci --ignore-scripts
+npm test
+npm run build:desktop
+```
+
+- **Linux x64**. Launch `dist/AgentWhisker-linux-x64/AgentWhisker` in an X11 session with a compositor. A tray icon requires desktop tray support. Native Wayland and Linux ARM are outside this preview.
+- **macOS Apple Silicon**. Run `dist/AgentWhisker-darwin-arm64/AgentWhisker.app` on the Mac that built it. Preview archives are ad hoc signed. A public build with standard Gatekeeper approval requires Developer ID signing and notarization. Intel Macs are outside this preview.
+
+The [desktop previews workflow](../../actions/workflows/desktop-previews.yml) builds and checks each archive on its target OS. The JSON status file provides a way to test all four states without a connected agent.
 
 ## Agent Console
 
