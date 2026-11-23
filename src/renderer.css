@@ -28,7 +28,7 @@ body {
 .pet-stage {
   position: absolute;
   left: 50%;
-  bottom: 36px;
+  bottom: calc(36px + var(--pet-bottom-offset, 0px));
   display: grid;
   place-items: center;
   width: calc(var(--pet-size) + 44px);
@@ -506,8 +506,11 @@ button:focus-visible, [role=button]:focus-visible { outline: 2px solid #abcaff; 
 @media (prefers-reduced-motion: reduce) { .limits-refresh.is-refreshing svg { animation: none; } }
 .limits-heading h2 { margin: 0; font-size: 14px; line-height: 1.4; font-weight: 650; }
 .limits-heading p, .limits-message, .limits-reset, .limits-observed { margin: 4px 0 0; color: #b6c3d5; font-size: 11px; }
-.limits-message { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
-  overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.limits-message { margin: 0 0 10px; line-height: 1.4; }
+.limits-message:empty { display: none; }
+.limits-message[data-error="true"] { color: #ffce8d; }
+.limits-more { color: #d4e4ff; background: #263449; border: 1px solid #3a4759;
+  border-radius: 7px; padding: 5px 8px; font: inherit; cursor: pointer; margin-bottom: 10px; }
 .limits-provider { padding: 11px 0; border-top: 1px solid #36404f; }
 .limits-provider-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 8px; }
 .limits-provider-heading h3 { margin: 0; font-size: 12px; font-weight: 650; }
@@ -520,6 +523,8 @@ button:focus-visible, [role=button]:focus-visible { outline: 2px solid #abcaff; 
 .limits-reset { font-size: 10px; }
 .limits-observed { margin-top: 7px; font-size: 10px; }
 .limits-extra { padding-top: 11px; border-top: 1px solid #36404f; font-size: 11px; }
+.limits-extra summary { cursor: pointer; }
+.limits-extra[open] summary { margin-bottom: 8px; }
 .limits-extra:empty { display: none; }
 .limits-extra-line { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 3px 8px; }
 .limits-extra strong { font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -531,7 +536,7 @@ button:focus-visible, [role=button]:focus-visible { outline: 2px solid #abcaff; 
 .pet-stage.fitted {
   width: var(--shape-width);
   height: var(--shape-height);
-  bottom: 64px;
+  bottom: calc(64px + var(--pet-bottom-offset, 0px));
   pointer-events: none;
 }
 .pet-stage.fitted #pet {
@@ -598,7 +603,10 @@ button:focus-visible, [role=button]:focus-visible { outline: 2px solid #abcaff; 
 .settings-popover {
   color: #f1efec; background: #1c2026; border-radius: 14px; padding: 15px 17px;
   font: 14px/1.4 "Segoe UI", sans-serif; accent-color: #efbd8e;
+  display: flex; flex-direction: column; overflow: hidden;
 }
+.settings-popover > .pet-heading { flex: none; }
+.settings-content { min-height: 0; overflow-y: auto; scrollbar-width: thin; }
 .settings-popover [hidden] { display: none !important; }
 .pet-heading, .setting-pair, #connectionOptions summary { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .pet-heading h2 { margin: 0; font-size: 21px; }

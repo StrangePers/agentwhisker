@@ -59,7 +59,7 @@ OpenCode's running service exposes pending questions and permission requests. Th
 
 ## Subscription limits
 
-In [v0.1.3 Preview](../../releases/tag/v0.1.3-preview.1), choose **Codex** or **OpenCode** under **Source**, then open the limits panel next to Kitsu.
+Starting with [v0.1.3](../../releases/tag/v0.1.3), choose **Codex** or **OpenCode** under **Source**, then open the limits panel next to Kitsu.
 
 - **Codex** reads limits through the installed Codex CLI when you are signed in with ChatGPT.
 - **OpenCode Go** reads the allowance for the workspace connected to the running OpenCode service.
