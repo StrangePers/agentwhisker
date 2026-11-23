@@ -346,9 +346,9 @@ function registerIpcHandlers(startupArgs = {}) {
     electron_1.ipcMain.handle("activity:read", async (_event, options) => {
         const revision = alertRevision;
         const activity = await (0, activity_1.readActivity)(options);
-        if (activity.source === "codex") {
+        if (activity.source === "codex" || activity.source === "codex-opencode") {
             await Promise.all(activity.sessions.map(async session => {
-                session.canOpenFolder = Boolean(await projectFolder(session));
+                session.canOpenFolder = (activity.source === "codex" || session.origin === "codex") && Boolean(await projectFolder(session));
             }));
         }
         if (alertsEnabled && appTray && revision === alertRevision) {

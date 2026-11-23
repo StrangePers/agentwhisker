@@ -662,7 +662,7 @@ function renderActivity(activity, offline = false) {
   const question = liveState === "waiting" && activity.source === "json-status" ? active?.detail : "";
   const linkDown = managed ? t("consoleDown") : t("sourceDown");
   const caption = offline ? linkDown : question || (livePhase === "checking" ? t("checksRunning") : stateNames[liveState]) || t("running");
-  live.textContent = caption + (question && other ? ` · ${t("otherTasks", { count: new Intl.NumberFormat(locale).format(other) })}` : "");
+  live.textContent = (activity.unavailable?.length ? activity.unavailable.map(labelForSource).join(" + ") + " · " + t("sourceDown") + " / " : "") + caption + (question && other ? ` · ${t("otherTasks", { count: new Intl.NumberFormat(locale).format(other) })}` : "");
   live.dataset.offline = String(offline);
   document.getElementById("openStatusTask").hidden = offline || !consoleActiveTask || !["waiting","failed"].includes(liveState);
   const currentTask = document.getElementById("currentTask");
@@ -705,13 +705,17 @@ function renderActivity(activity, offline = false) {
 }
 
 function renderTaskRows(sessions, source) {
-  const rows = sessions.map(session => ({
-    id: (source === "json-status" && isConsoleTask(session)) || (source === "codex" && session.canOpenFolder) ? session.id : "",
-    folder: source === "codex" && session.canOpenFolder,
+  const rows = sessions.map(session => {
+    const origin = session.origin || source;
+    const folder = origin === "codex" && session.canOpenFolder;
+    return {
+    id: folder ? session.sourceId || session.id : source === "json-status" && isConsoleTask(session) ? session.id : "",
+    folder,
     state: session.state,
-    title: displayTitle(session, source),
-    detail: taskDetail(session, source),
-  }));
+    title: displayTitle(session, origin),
+    detail: session.origin ? labelForSource(origin) + " · " + t(session.state) : taskDetail(session, source),
+    };
+  });
   const signature = JSON.stringify(rows);
   if (signature === renderedTaskRows) return;
   renderedTaskRows = signature;

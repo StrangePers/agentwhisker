@@ -13,6 +13,10 @@ exports.PROVIDER_METADATA = [
         setupHint: "Reads local Codex session metadata from CODEX_HOME.",
     },
     {
+        id: "codex-opencode", label: "Codex + OpenCode", modes: ["local"], defaultRefreshMs: 8000,
+        setupHint: "Codex + OpenCode",
+    },
+    {
         id: "opencode",
         label: "OpenCode",
         modes: ["local-api", "sqlite", "bridge-file", "command"],

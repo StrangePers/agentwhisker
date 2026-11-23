@@ -20,6 +20,15 @@ const PROVIDER_READERS = {
     "json-status": (options) => (0, json_status_1.readJsonStatusActivity)(options.statusFile, options),
     desktop: desktop_1.readDesktopActivity,
 };
+const {createCombinedReader} = require("./combined.cjs");
+let combinedHome, combinedRead;
+PROVIDER_READERS["codex-opencode"] = options => {
+    if (!combinedRead || combinedHome !== options.codexHome) {
+        combinedHome = options.codexHome;
+        combinedRead = createCombinedReader({codex:PROVIDER_READERS.codex, opencode:PROVIDER_READERS.opencode});
+    }
+    return combinedRead(options);
+};
 exports.PROVIDERS = [
     ...(0, registry_1.listProviderMetadata)().map((provider) => ({ ...provider, read: PROVIDER_READERS[provider.id] })),
 ];
