@@ -2,6 +2,9 @@
 
 // English, Spanish, Simplified Chinese, Hindi.
 const siteCopy = {
+  shuttleHeading: ["Follow a RoleShuttle task with Kitsu","Sigue una tarea de RoleShuttle con Kitsu","用 Kitsu 查看 RoleShuttle 任务进度","Kitsu के साथ RoleShuttle का काम देखें"],
+  shuttleBody: ["Your chat can send work to an implementer and a reviewer. When the controller updates its local status file, Kitsu shows whether the task is running or waiting for you.","Tu chat puede encargar la implementación y la revisión a agentes distintos. Cuando el controlador actualiza el archivo de estado local, Kitsu muestra si la tarea sigue en curso o espera tu respuesta.","聊天助手可以把实现和审查交给不同的模型。控制器更新本地状态文件后，Kitsu 会显示任务是在运行，还是在等你回复。","आपका चैट एजेंट काम का एक हिस्सा समाधान तैयार करने वाले मॉडल को और दूसरा उसकी समीक्षा करने वाले मॉडल को सौंप सकता है। जब कंट्रोलर स्थानीय स्टेटस फ़ाइल अपडेट करता है, तो Kitsu दिखाती है कि काम चल रहा है या आपके जवाब का इंतज़ार है।"],
+  shuttleGuide: ["Connect the status file","Conectar el archivo de estado","连接状态文件","स्टेटस फ़ाइल जोड़ें"],
   windowsDailyUse: ["In v0.1.6, choose whether to start at sign-in and get quiet alerts when a task needs a reply or fails.","En v0.1.6 puedes activar el inicio al entrar en Windows y los avisos silenciosos cuando una tarea necesita respuesta o falla.","v0.1.6 支持登录 Windows 时自动启动，也可在任务需要回复或失败时发送静默通知。两项功能均可自行开启。","v0.1.6 में आप Windows में साइन इन करते समय ऐप शुरू कर सकते हैं और जवाब की ज़रूरत या कार्य विफल होने पर बिना आवाज़ वाली सूचनाएँ पा सकते हैं।"],
   title: ["AgentWhisker · An animated desktop companion","AgentWhisker · Una compañera animada de escritorio","AgentWhisker · 动画桌面伙伴","AgentWhisker · ऐनिमेटेड डेस्कटॉप साथी"],
   description: ["See what your coding agent is doing through Kitsu’s animations.","Descubre qué hace tu agente de programación con las animaciones de Kitsu.","通过 Kitsu 的动画了解编程智能体的状态。","Kitsu के ऐनिमेशन से जानें कि आपका कोडिंग एजेंट क्या कर रहा है।"],
