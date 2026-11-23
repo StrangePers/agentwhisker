@@ -28,6 +28,7 @@ async function main() {
     !document.getElementById("languageSelect").disabled, code);
   let app = await launch();
   try {
+    const version = await app.evaluate(({app}) => app.getVersion());
     let page = await app.firstWindow();
     await app.evaluate(({ Menu, dialog }) => {
       globalThis.awTrayLabels = [];
@@ -57,6 +58,9 @@ async function main() {
       await page.locator("#languageSelect").selectOption(code);
       await awaitLocale(page, code);
       assert.equal(await page.locator('label[for="languageSelect"]').textContent(), t("language"));
+      const versionLabel = page.locator("#appVersion");
+      assert(await versionLabel.isVisible());
+      assert.equal(await versionLabel.textContent(), `v${version}`);
       for (const key of ["launchAtLogin","notifyOnAttention"])
         assert.equal(await page.locator('[data-t="' + key + '"]').textContent(), t(key));
       assert.equal(await page.locator('label[for="idleAnimationMode"]').textContent(), t("idleAnimation"));

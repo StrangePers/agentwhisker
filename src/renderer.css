@@ -614,6 +614,7 @@ button:focus-visible, [role=button]:focus-visible { outline: 2px solid #abcaff; 
 #sourceDiagnostic { font-size: .9em; }
 .pet-heading, .setting-pair, #connectionOptions summary { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .pet-heading h2 { margin: 0; font-size: 21px; }
+.app-version { margin-inline-start: auto; color: #c5c9cf; font-size: 12px; white-space: nowrap; }
 .settings-popover button, .settings-popover summary { font: inherit; cursor: pointer; color: inherit; }
 .settings-popover button { background: #303640; border: 1px solid transparent; border-radius: 7px; padding: 5px; }
 .settings-popover button:focus-visible, .settings-popover summary:focus-visible { outline: 2px solid #f2cda8; }

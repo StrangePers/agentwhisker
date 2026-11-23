@@ -223,6 +223,7 @@ async function createWindow(args) {
     electron_1.app.once("before-quit", () => clearInterval(stopTimer));
     win.loadFile(path.join(__dirname, "renderer.html"), {
         query: {
+            appVersion: electron_1.app.getVersion(),
             firstConnection: firstConnection ? "1" : "",
             codexHome,
             locale: labels.locale,

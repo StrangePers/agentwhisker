@@ -54,7 +54,11 @@
       </section>
 
       <section id="settingsPopover" class="settings-popover" data-t-label="petSettings" aria-hidden="true">
-        <header class="pet-heading"><h2 data-t="pet"></h2><button id="closeSettings" data-t-label="closeSettings">×</button></header>
+        <header class="pet-heading">
+          <h2 data-t="pet"></h2>
+          <span id="appVersion" class="app-version" hidden></span>
+          <button id="closeSettings" data-t-label="closeSettings">×</button>
+        </header>
         <div class="settings-content">
         <section id="firstConnection" hidden>
           <strong data-t="connectAgent"></strong>

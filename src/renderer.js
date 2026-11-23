@@ -32,6 +32,12 @@ const { translator, apply: translateElements, languages } = window.AgentWhiskerL
 const { locale, t, taskCount: formatTaskCount } = translator(params.get("locale"));
 document.documentElement.lang = locale;
 translateElements(document, t);
+const appVersion = params.get("appVersion");
+if (appVersion) {
+  const versionLabel = document.getElementById("appVersion");
+  versionLabel.textContent = `v${appVersion}`;
+  versionLabel.hidden = false;
+}
 const codexHome = params.get("codexHome") || "";
 const nativeLimitsProviders = new Set((params.get("nativeLimits") || "").split(",").filter(Boolean));
 const initialPetId = params.get("pet") || "";
