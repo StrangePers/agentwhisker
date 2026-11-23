@@ -22,6 +22,7 @@ async function main() {
   }));
   await publish([...running, history]);
   await fs.mkdir(profile);
+  await fs.writeFile(path.join(profile, "settings.json"), JSON.stringify({ locale: "en" }));
   await fs.writeFile(path.join(profile, "limits.json"), JSON.stringify({
     providers: Array.from({length: 6}, (_, index) => ({
       id: `provider-${index}`, label: `Provider ${index}`, windows: [],
@@ -37,7 +38,7 @@ async function main() {
     const badge = page.locator("#threadBadge");
     const panel = page.locator("#threadPopover");
     const rows = panel.locator(".session-title");
-    const collapse = page.getByRole("button", { name: "Свернуть задачи" });
+    const collapse = page.getByRole("button", { name: "Collapse tasks" });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await badge.waitFor({ state: "attached" });
     await page.waitForFunction(() => shape && currentState === "running");
@@ -90,7 +91,7 @@ async function main() {
     await page.mouse.move(1, 1);
     await collapse.hover();
     await hint.waitFor({ state: "visible" });
-    assert.equal(await hint.textContent(), "Свернуть задачи");
+    assert.equal(await hint.textContent(), "Collapse tasks");
     assert.equal(await collapse.evaluate(button => button.matches(":focus-visible")), false);
     await page.mouse.move(1, 1);
     await hint.waitFor({ state: "hidden" });
@@ -246,17 +247,17 @@ async function main() {
 
     await publish([], true);
     await page.evaluate(() => refreshActivity());
-    await panel.getByText("Источник недоступен").waitFor();
+    await panel.getByText("Source unavailable").waitFor();
     assert.equal(await rows.count(), 0);
     await publish([]);
     await page.evaluate(() => refreshActivity());
-    await panel.getByText("Нет активных задач").waitFor();
+    await panel.getByText("No active tasks").waitFor();
     await collapse.click();
     assert.equal(await badge.getAttribute("aria-expanded"), "false");
 
     await page.evaluate(() => { managed = true; requestedState = "auto"; });
     await publish(running.map(task => ({
-      ...task, detail: `Исполнение · ${task.detail} · OpenCode · provider/model`,
+      ...task, detail: `Executing · ${task.detail} · OpenCode · provider/model`,
     })));
     await page.evaluate(() => refreshActivity());
     await page.waitForFunction(() => document.querySelectorAll(".session-title").length === 2);

@@ -611,11 +611,11 @@ button:focus-visible, [role=button]:focus-visible { outline: 2px solid #abcaff; 
 .settings-popover .skin-card[aria-pressed=true] { background: #39322c; border-color: #efbd8e; }
 .skin-card[aria-pressed=true]::after { content: "✓"; position: absolute; right: 5px; color: #f4c392; }
 #petSizeInput { accent-color: #efbd8e; width: 100%; margin: 5px 0 11px; }
-.idle-animation-setting { display: grid; gap: 5px; margin-bottom: 10px; }
-#idleAnimationMode { width: 100%; min-width: 0; font: inherit; }
-#idleAnimationMode:focus-visible { outline: 2px solid #f2cda8; }
-#idleAnimationStatus { color: #ffc091; font-size: 12px; }
-#idleAnimationStatus:empty { display: none; }
+.idle-animation-setting, .language-setting { display: grid; gap: 5px; margin-bottom: 10px; }
+#idleAnimationMode, #languageSelect { width: 100%; min-width: 0; font: inherit; }
+#idleAnimationMode:focus-visible, #languageSelect:focus-visible { outline: 2px solid #f2cda8; }
+#idleAnimationStatus, #languageStatus { color: #ffc091; font-size: 12px; }
+#idleAnimationStatus:empty, #languageStatus:empty { display: none; }
 .setting-pair input[role="switch"] { padding: 0; border: 0; appearance: none; width: 32px; height: 19px; border-radius: 11px; background: #535961; cursor: pointer; }
 .setting-pair input[role="switch"]:checked { background: #efbd8e; }
 .setting-pair input[role="switch"]::after { content: ""; display: block; width: 13px; height: 13px; margin: 3px; border-radius: 50%; background: #1c2026; }

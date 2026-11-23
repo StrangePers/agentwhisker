@@ -1,9 +1,9 @@
 {
   "name": "agentwhisker",
   "productName": "AgentWhisker",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
-  "description": "Animated desktop companion for coding agents",
+  "description": "Animated desktop companion for coding agents in English, Spanish, Simplified Chinese, and Hindi",
   "main": "src/main.js",
   "license": "MIT",
   "scripts": {

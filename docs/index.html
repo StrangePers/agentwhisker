@@ -3,51 +3,59 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="AgentWhisker is an animated desktop companion for coding agents. Meet Kitsu and see when a task needs your attention.">
-  <meta property="og:title" content="AgentWhisker · A desktop companion for coding agents">
-  <meta property="og:description" content="See what your agent is doing through Kitsu’s animations.">
-  <meta property="og:image" content="media/social-preview.jpg">
-  <title>AgentWhisker · A desktop companion for coding agents</title>
+  <meta data-site-meta="description" name="description" content="AgentWhisker is an animated desktop companion for coding agents. Meet Kitsu and see when a task needs your attention.">
+  <meta data-site-meta="title" property="og:title" content="AgentWhisker · A desktop companion for coding agents">
+  <meta data-site-meta="description" property="og:description" content="See what your agent is doing through Kitsu’s animations.">
+  <meta property="og:image" content="https://strangepers.github.io/agentwhisker/media/social-preview.jpg?v=0.1.1">
+  <title data-site="title">AgentWhisker · A desktop companion for coding agents</title>
   <link rel="icon" href="media/agentwhisker.png">
-  <link rel="stylesheet" href="site.css">
-  <script src="site.js" defer></script>
+  <link rel="stylesheet" href="site.css?v=0.1.1">
+  <script src="site-copy.js?v=0.1.1" defer></script>
+  <script src="site.js?v=0.1.1" defer></script>
 </head>
 <body>
   <header class="shell header">
     <a class="brand" href="#home"><img src="media/agentwhisker.png" width="40" height="40" alt="">AgentWhisker</a>
-    <nav aria-label="Main navigation"><a href="#motion">Animations</a><a href="#start">Get started</a></nav>
+    <nav data-site-label="mainNav" aria-label="Main navigation"><a href="#motion" data-site="animations">Animations</a><a href="#start" data-site="getStarted">Get started</a>
+      <select id="site-language" data-site-label="language" aria-label="Language">
+        <option value="en" lang="en">English</option>
+        <option value="es" lang="es">Español</option>
+        <option value="zh-CN" lang="zh-CN">简体中文</option>
+        <option value="hi" lang="hi">हिन्दी</option>
+      </select>
+    </nav>
   </header>
   <main id="home" class="shell">
     <section class="hero" aria-labelledby="hero-heading">
       <div>
-        <h1 id="hero-heading">See what your agent is up to.</h1>
-        <p>Kitsu is a little fox-eared companion who lives on your Windows desktop. She types while your agent works and changes pose when a task needs your attention.</p>
-        <div class="actions"><a class="primary" href="#start">Get AgentWhisker</a><a class="secondary" href="#motion">Meet Kitsu <span aria-hidden="true">↓</span></a></div>
-        <small>Free with Kitsu · Portable for Windows x64</small>
+        <h1 id="hero-heading" data-site="hero">See what your agent is up to.</h1>
+        <p data-site="heroBody">Kitsu is a little fox-eared companion who lives on your Windows desktop. She types while your agent works and changes pose when a task needs your attention.</p>
+        <div class="actions"><a class="primary" href="#start" data-site="getApp">Get AgentWhisker</a><a class="secondary" href="#motion"><span data-site="meetKitsu">Meet Kitsu</span> <span aria-hidden="true">↓</span></a></div>
+        <small data-site="availability">Free with Kitsu · Portable for Windows x64</small>
       </div>
       <figure class="stage">
-        <img src="media/desktop-preview.jpg" alt="AgentWhisker on a dark desktop with Kitsu typing and two sample agent tasks" width="1000" height="620">
-        <figcaption><span></span> Kitsu at work</figcaption>
+        <img src="media/desktop-preview.jpg?v=0.1.1" data-site-alt="desktopAlt" alt="AgentWhisker on a dark desktop with Kitsu typing and two sample agent tasks" width="1000" height="620">
+        <figcaption><span class="stage-indicator"></span> <span data-site="kitsuWorking">Kitsu at work</span></figcaption>
       </figure>
     </section>
     <section id="motion" aria-labelledby="motion-heading">
-      <div class="section-intro"><h2 id="motion-heading">Four states, four animations.</h2><p>Play a preview to see the same animation that runs in the app.</p></div>
+      <div class="section-intro"><h2 id="motion-heading" data-site="motionHeading">Four states, four animations.</h2><p data-site="motionBody">Play a preview to see the same animation that runs in the app.</p></div>
       <div class="motion-grid">
-        <figure><video controls loop muted playsinline preload="none" poster="media/idle.jpg" aria-label="Kitsu resting"><source src="media/idle.mp4" type="video/mp4"></video><figcaption><b>Idle</b> Between tasks</figcaption></figure>
-        <figure><video controls loop muted playsinline preload="none" poster="media/running.jpg" aria-label="Kitsu typing"><source src="media/running.mp4" type="video/mp4"></video><figcaption><b>Running</b> An agent is working</figcaption></figure>
-        <figure><video controls loop muted playsinline preload="none" poster="media/waiting.jpg" aria-label="Kitsu waiting for a decision"><source src="media/waiting.mp4" type="video/mp4"></video><figcaption><b>Waiting</b> A decision is needed</figcaption></figure>
-        <figure><video controls loop muted playsinline preload="none" poster="media/failed.jpg" aria-label="Kitsu reacting to an error"><source src="media/failed.mp4" type="video/mp4"></video><figcaption><b>Error</b> A task needs a look</figcaption></figure>
+        <figure><video controls loop muted playsinline preload="none" poster="media/idle.jpg" data-site-label="idleAlt" aria-label="Kitsu resting"><source src="media/idle.mp4" type="video/mp4"></video><figcaption><b data-site="idle">Idle</b> <span data-site="idleCaption">Between tasks</span></figcaption></figure>
+        <figure><video controls loop muted playsinline preload="none" poster="media/running.jpg" data-site-label="runningAlt" aria-label="Kitsu typing"><source src="media/running.mp4" type="video/mp4"></video><figcaption><b data-site="running">Running</b> <span data-site="runningCaption">An agent is working</span></figcaption></figure>
+        <figure><video controls loop muted playsinline preload="none" poster="media/waiting.jpg" data-site-label="waitingAlt" aria-label="Kitsu waiting for a decision"><source src="media/waiting.mp4" type="video/mp4"></video><figcaption><b data-site="waiting">Waiting</b> <span data-site="waitingCaption">A decision is needed</span></figcaption></figure>
+        <figure><video controls loop muted playsinline preload="none" poster="media/failed.jpg" data-site-label="errorAlt" aria-label="Kitsu reacting to an error"><source src="media/failed.mp4" type="video/mp4"></video><figcaption><b data-site="error">Error</b> <span data-site="errorCaption">A task needs a look</span></figcaption></figure>
       </div>
     </section>
     <section id="start" class="quickstart" aria-labelledby="start-heading">
-      <div><h2 id="start-heading">Bring Kitsu to your desktop.</h2><p>Kitsu starts in standalone mode. Preview her animations in settings, connect a JSON status file, or use the Agent Console bridge.</p><a class="primary" id="release-link" href="release-v0.1.0.md" data-release-link>Release notes</a></div>
+      <div><h2 id="start-heading" data-site="start">Bring Kitsu to your desktop.</h2><p data-site="startBody">Kitsu starts in standalone mode. Preview her animations in settings, connect a JSON status file, or use the Agent Console bridge.</p><a class="primary" id="release-link" href="https://github.com/StrangePers/agentwhisker/releases/latest" data-release-link data-site="releaseNotes">Release notes</a><p class="app-languages" data-site="availableLanguages">The app is available in English, Spanish, Simplified Chinese, and Hindi.</p></div>
       <ol>
-        <li>Download the Windows x64 ZIP from GitHub Releases.</li>
-        <li>Extract the entire archive and run <code>AgentWhisker.exe</code>.</li>
-        <li>Hover over Kitsu and click the gear to preview animations or change idle motion.</li>
+        <li data-site="stepZip">Download the Windows x64 ZIP from GitHub Releases.</li>
+        <li data-site="stepExtract">Extract the entire ZIP and run AgentWhisker.exe.</li>
+        <li data-site="stepSettings">Hover over Kitsu and click the gear to preview animations or change idle motion.</li>
       </ol>
     </section>
   </main>
-  <footer class="shell footer"><span>AgentWhisker</span><span>MIT code · <a href="artwork.html">Character artwork terms</a></span></footer>
+  <footer class="shell footer"><span>AgentWhisker</span><span><span data-site="mit">MIT code</span> · <a data-site-link href="artwork.html" data-site="artwork">Character artwork terms</a></span></footer>
 </body>
 </html>

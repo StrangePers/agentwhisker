@@ -4,9 +4,10 @@
 
 <p align="center">A fox-eared desktop companion for coding agents.</p>
 
-<p align="center"><a href="../../releases">Windows downloads</a> · <a href="docs/quickstart-ru.md">Инструкция на русском</a></p>
+<p align="center"><a href="../../releases/latest">Windows downloads</a> · <a href="https://strangepers.github.io/agentwhisker/">Project website</a></p>
+<p align="center"><a href="https://strangepers.github.io/agentwhisker/?lang=en">English</a> · <a href="docs/quickstart.es.md">Español</a> · <a href="docs/quickstart.zh-CN.md">简体中文</a> · <a href="docs/quickstart.hi.md">हिन्दी</a></p>
 
-![Kitsu typing on the Windows desktop beside a list of two sample agent tasks](docs/media/desktop-preview.jpg)
+![Kitsu typing on the Windows desktop beside a list of two sample agent tasks](docs/media/desktop-preview.jpg?v=0.1.1)
 
 Kitsu rests when your agent is idle, types while it works, waits when a decision is needed, and reacts to errors. She lives in a transparent window on your desktop. Click through the background to keep working in the windows beneath her.
 
@@ -20,14 +21,18 @@ Kitsu rests when your agent is idle, types while it works, waits when a decision
 2. Extract the whole archive and open **AgentWhisker.exe**.
 3. Hover over Kitsu and click the gear to see her animations and change her settings.
 
-The tray menu shows, hides, or quits AgentWhisker. **Анимация в покое** (Idle animation) runs continuously by default. Switch it to **Только при событиях** (Only on events) to keep Kitsu still between tasks. The free download includes Kitsu. Additional characters can be imported from a `.whiskerpack` file in settings.
+The tray menu shows, hides, or quits AgentWhisker. **Idle animation** runs continuously by default. Switch it to **Only on events** to keep Kitsu still between tasks. The free download includes Kitsu. Additional characters can be imported from a `.whiskerpack` file in settings.
 
 <details>
-<summary>See the animation settings (Russian UI)</summary>
+<summary>See the language and animation settings</summary>
 
-![AgentWhisker settings with buttons for all four animation previews](docs/media/settings-preview.jpg)
+![AgentWhisker settings with the idle animation and language options](docs/media/settings-preview.jpg?v=0.1.1)
 
 </details>
+
+## Languages
+
+AgentWhisker is available in English, Spanish, Simplified Chinese, and Hindi. It follows your system language by default and uses English when no supported system language is available. Choose **Language** in the companion settings to override it. Task titles and messages from connected sources stay in their original language.
 
 ## Connect a status source
 

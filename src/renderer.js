@@ -28,6 +28,10 @@ const IDLE_REFRESH_MS = 8000;
 const DESKTOP_REFRESH_MS = 30000;
 
 const params = new URLSearchParams(location.search);
+const { translator, apply: translateElements, languages } = window.AgentWhiskerLocale;
+const { locale, t, taskCount: formatTaskCount } = translator(params.get("locale"));
+document.documentElement.lang = locale;
+translateElements(document, t);
 const codexHome = params.get("codexHome") || "";
 const initialPetId = params.get("pet") || "";
 const initialState = params.get("state") || "";
@@ -82,7 +86,8 @@ let taskPanelResize = null;
 const settingsPopover = document.getElementById("settingsPopover");
 const managedFile = params.get("managedFile") || "";
 let managed = params.get("managed") === "1";
-const stateNames = {idle:"Отдыхает", running:"Работает", waiting:"Ждёт решения", failed:"Ошибка", review:"На проверке", waving:"Задача принята"};
+const stateNames = Object.fromEntries(["idle", "running", "waiting", "failed", "review"].map(state => [state, t(state)]));
+stateNames.waving = t("accepted");
 let liveState = "idle";
 let livePhase = "";
 let previewFrames = 0;
@@ -545,7 +550,7 @@ function applyPet(pet) {
     else void updatePetShape(currentState);
   }
   petElement.setAttribute("aria-label", pet.displayName);
-  petElement.title = `${pet.displayName} · правая кнопка — меню`;
+  petElement.title = t("petMenuHint", { name: pet.displayName });
   petElement.style.imageRendering = "auto";
   for (const button of document.querySelectorAll(".skin-card")) {
     button.setAttribute("aria-pressed", String(button.dataset.petId === pet.id));
@@ -566,7 +571,7 @@ function renderSkinGallery() {
     button.dataset.petId = pet.id;
     button.setAttribute("aria-label", pet.displayName);
     button.setAttribute("aria-pressed", "false");
-    button.title = pet.description || pet.displayName;
+    button.title = pet.id === "kitsu" ? t("kitsuDescription") : pet.description || pet.displayName;
     const preview = document.createElement("span");
     preview.className = "skin-preview";
     preview.setAttribute("aria-hidden", "true");
@@ -616,7 +621,7 @@ let showTaskLabel = true;
 let showBusyBubble = true;
 let busyTasks = false;
 let renderedTaskRows = "";
-const taskPlural = new Intl.PluralRules("ru");
+
 function updateBusyBubble() {
   threadBadge.classList.toggle("pinned", showBusyBubble && busyTasks);
   document.getElementById("busyBubbleToggle").checked = showBusyBubble;
@@ -628,7 +633,7 @@ async function openConsoleTask(taskId) {
   const error = document.getElementById("consoleError");
   error.textContent = "";
   try { await window.codexPets.openConsole(taskId); }
-  catch { error.textContent = "Откройте вкладку Agent Console через её ярлык и повторите переход."; setPopoverOpen(true); }
+  catch { error.textContent = t("openConsoleAgain"); setPopoverOpen(true); }
   finally { openingConsole = false; }
 }
 function renderActivity(activity, offline = false) {
@@ -638,13 +643,13 @@ function renderActivity(activity, offline = false) {
   const live = document.getElementById("liveStatus");
   const other = (activity.sessions || []).filter(item => item.id !== active?.id && item.state === "running").length;
   const question = liveState === "waiting" ? active?.detail : "";
-  const linkDown = managed ? "Нет связи с Agent Console" : "Источник недоступен";
-  const caption = offline ? linkDown : question || (livePhase === "checking" ? "Идут проверки" : stateNames[liveState]) || "Работает";
-  live.textContent = caption + (question && other ? ` · В работе ещё: ${other}` : "");
+  const linkDown = managed ? t("consoleDown") : t("sourceDown");
+  const caption = offline ? linkDown : question || (livePhase === "checking" ? t("checksRunning") : stateNames[liveState]) || t("running");
+  live.textContent = caption + (question && other ? ` · ${t("otherTasks", { count: new Intl.NumberFormat(locale).format(other) })}` : "");
   live.dataset.offline = String(offline);
   document.getElementById("openStatusTask").hidden = offline || !consoleActiveTask || !["waiting","failed"].includes(liveState);
   const currentTask = document.getElementById("currentTask");
-  currentTask.textContent = isEmpty ? "Нет активных задач" : active?.title || "AgentWhisker";
+  currentTask.textContent = isEmpty ? t("noTasks") : active?.title || "AgentWhisker";
   currentTask.title = isEmpty ? "" : [active?.title, active?.detail].filter(Boolean).join(" — ");
   currentTask.dataset.empty = String(isEmpty || activity.source === "desktop");
   currentTask.hidden = !showTaskLabel || isEmpty || activity.source === "desktop";
@@ -669,14 +674,13 @@ function renderActivity(activity, offline = false) {
   threadBadge.hidden = isDesktop;
   if (isDesktop && popoverOpen) setPopoverOpen(false);
   threadBadge.textContent = badgeCount > 99 ? "99+" : String(badgeCount);
-  const taskNoun = {one: "задача", few: "задачи", many: "задач"}[taskPlural.select(badgeCount)] || "задач";
-  const countLabel = `${badgeCount} ${taskNoun}`;
+  const countLabel = formatTaskCount(badgeCount);
   threadBadge.title = countLabel;
-  threadBadge.setAttribute("aria-label", `Показать задачи: ${countLabel}`);
-  taskCount.textContent = badgeCount ? countLabel : "Задачи";
-  taskScope.textContent = badgeCount && sessions.every(session => session.state === "running") ? "в работе" : "";
+  threadBadge.setAttribute("aria-label", t("showNumberedTasks", { count: countLabel }));
+  taskCount.textContent = badgeCount ? countLabel : t("tasks");
+  taskScope.textContent = badgeCount && sessions.every(session => session.state === "running") ? t("inProgress") : "";
   const message = offline ? linkDown : !badgeCount
-    ? (activity.state === "failed" && active?.title || "Нет активных задач") : "";
+    ? (activity.state === "failed" && active?.title || t("noTasks")) : "";
   if (taskMessage.textContent !== message) taskMessage.textContent = message;
   renderTaskRows(sessions, activity.source);
   positionLimits();
@@ -741,7 +745,7 @@ function isConsoleTask(session) {
 
 function displayTitle(session, source) {
   const title = String(session?.title || "").trim();
-  if (!title || isInternalId(title)) return `${labelForSource(source)} thread`;
+  if (!title || isInternalId(title)) return t("threadTitle", { source: labelForSource(source) });
   return title;
 }
 
@@ -751,15 +755,14 @@ function isInternalId(value) {
 
 function taskDetail(session, source) {
   const detail = source === "json-status" && session.detail !== "Status file activity" ? session.detail : "";
-  if (session.state === "waiting") return detail && detail !== "Нужно ваше решение"
-    ? `Нужен ваш ответ — ${detail}` : "Нужен ваш ответ";
-  if (session.state === "failed") return detail || "Ошибка";
+  if (session.state === "waiting") return detail ? t("answerWithDetail", { detail }) : t("answerNeeded");
+  if (session.state === "failed") return detail || t("failed");
   const fields = managed ? detail?.split(" · ") || [] : [];
   const clientIndex = fields.findIndex((field, index) => index > 0 &&
     ["Codex", "Claude Code", "OpenCode", "agent-mesh", "Console"].includes(field));
   const context = managed ? (clientIndex > 1 ? fields.slice(1, clientIndex).join(" · ") : "Agent Console")
     : detail || labelForSource(source);
-  return session.phase === "checking" ? `Проверки · ${context}` : context;
+  return session.phase === "checking" ? t("checkingContext", { context }) : context;
 }
 
 function isBadgeSession(session) {
@@ -767,7 +770,9 @@ function isBadgeSession(session) {
 }
 
 function labelForSource(source) {
-  return providerById.get(source)?.label || "Agent";
+  if (source === "json-status") return t("statusFile");
+  if (source === "desktop") return t("desktop");
+  return providerById.get(source)?.label || t("agent");
 }
 
 async function boot() {
@@ -781,6 +786,7 @@ async function boot() {
     petSize: 112,
     statusFile: "",
   }));
+  initializeLanguage(settings.locale);
   applyIdleAnimationMode(settings.idleAnimationMode);
   savedIdleAnimationMode = idleAnimationMode;
   idleAnimationSelect.disabled = false;
@@ -800,13 +806,13 @@ async function boot() {
     load: pet => new Promise((resolve, reject) => {
       const image = new Image();
       image.onload = () => resolve();
-      image.onerror = () => reject(new Error("Не удалось загрузить персонажа."));
+      image.onerror = () => reject(new Error(t("loadPetFailure")));
       image.src = pet.spritesheetDataUrl;
     }),
     save: id => window.codexPets.updateSettings({ selectedPetId: id }),
     apply: applyPet,
     onError: () => {
-      document.getElementById("consoleError").textContent = "Не удалось сменить персонажа. Попробуйте ещё раз.";
+      document.getElementById("consoleError").textContent = t("selectPetFailure");
       setPopoverOpen(true);
     },
   });
@@ -822,6 +828,37 @@ async function boot() {
   limitsButton.hidden = !managedFile;
   await initializeLimits({...settings, limitsPanelOpen:Boolean(managedFile && settings.limitsPanelOpen)});
   await refreshActivity();
+  if (params.get("showSettings") === "1") setSettingsOpen(true);
+}
+
+function initializeLanguage(preference) {
+  const select = document.getElementById("languageSelect");
+  const message = document.getElementById("languageStatus");
+  select.add(new Option(t("system"), ""));
+  for (const [code, name] of Object.entries(languages)) select.add(new Option(name, code));
+  select.value = preference || "";
+  select.disabled = false;
+  select.addEventListener("change", async () => {
+    select.disabled = true;
+    message.textContent = "";
+    try {
+      const saved = await window.codexPets.updateSettings({ locale: select.value });
+      preference = saved.locale;
+      if (saved.effectiveLocale !== locale) {
+        const url = new URL(location.href);
+        const state = {
+          locale: saved.effectiveLocale,
+          provider, statusFile, petSize, state: requestedState,
+          pet: selectedPetId, managed: managed ? "1" : "", showSettings: "1",
+        };
+        for (const [key, value] of Object.entries(state)) url.searchParams.set(key, value);
+        location.replace(url.href);
+      }
+    } catch {
+      select.value = preference || "";
+      message.textContent = t("selectLanguageError");
+    } finally { select.disabled = false; }
+  });
 }
 
 async function loadProviders() {
@@ -844,7 +881,7 @@ function renderProviderOptions() {
   for (const item of providers) {
     const option = document.createElement("option");
     option.value = item.id;
-    option.textContent = item.id === "json-status" ? "Собственный файл" : item.label;
+    option.textContent = item.id === "json-status" ? t("customFile") : labelForSource(item.id);
     providerSelect.append(option);
   }
 }
@@ -1198,7 +1235,7 @@ function clamp(value, min, max) {
 }
 
 function updateProviderControls() {
-  document.getElementById("connectionName").textContent = managed ? "Agent Console" : provider === "json-status" ? "Файл статуса" : providerById.get(provider)?.label || provider;
+  document.getElementById("connectionName").textContent = managed ? "Agent Console" : provider === "json-status" ? t("statusFile") : labelForSource(provider);
 
   statusFileRow.hidden = managed || !providerById.get(provider)?.requiresStatusFile;
 }
@@ -1398,7 +1435,7 @@ function positionLimits() {
 }
 function limitsDate(value) {
   const date = typeof value === 'string' ? new Date(value) : null;
-  return date && Number.isFinite(+date) ? new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(date) : null;
+  return date && Number.isFinite(+date) ? new Intl.DateTimeFormat(locale,{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(date) : null;
 }
 function limitsOld(value) {
   const stamp = typeof value === 'string' ? Date.parse(value) : NaN;
@@ -1406,9 +1443,13 @@ function limitsOld(value) {
 }
 function limitsAge(value) {
   const stamp = typeof value === 'string' ? Date.parse(value) : NaN;
-  if (!Number.isFinite(stamp)) return 'Время наблюдения неизвестно';
+  if (!Number.isFinite(stamp)) return t("timeUnknown");
   const age = Math.max(0, Date.now() - stamp);
-  return age < 60000 ? 'Проверено только что' : age < 3600000 ? `Проверено ${Math.floor(age / 60000)} мин назад` : `Проверено ${Math.floor(age / 3600000)} ч назад`;
+  if (age < 60000) return t("justChecked");
+  const minutes = age < 3600000;
+  return t(minutes ? "checkedMinutes" : "checkedHours", {
+    count: new Intl.NumberFormat(locale).format(Math.floor(age / (minutes ? 60000 : 3600000))),
+  });
 }
 function limitsNode(tag, className, text) {
   const node = document.createElement(tag);
@@ -1436,14 +1477,14 @@ function renderLimits() {
   limitsRefreshButton.disabled = busy;
   limitsRefreshButton.setAttribute('aria-busy', String(busy));
   host.setAttribute('aria-busy', String(busy));
-  const statusText = busy ? (hasSaved ? 'Обновляем… Показаны сохранённые данные.' : 'Обновляем лимиты…')
-    : limitsError || (overdue ? 'Обновление не завершилось. Показаны сохранённые данные.'
-    : limitsValue?.error || progress?.state === 'error' ? 'Не удалось обновить лимиты. Показаны сохранённые данные.'
-    : !limitsValue ? 'Читаем лимиты…' : !providers.length ? 'Лимиты пока не получены.' : '');
+  const statusText = busy ? (hasSaved ? t("refreshingSaved") : t("refreshingLimits"))
+    : limitsError || (overdue ? t("refreshOverdue")
+    : limitsValue?.error || progress?.state === 'error' ? t("refreshFailed")
+    : !limitsValue ? t("readLimits") : !providers.length ? t("limitsPending") : '');
   if (message.textContent !== statusText) message.textContent = statusText;
   const failed = !busy && (!!limitsError || overdue || !!limitsValue?.error || progress?.state === 'error');
-  limitsRefreshButton.title = failed ? `${statusText} Нажмите, чтобы повторить.`
-    : busy ? 'Обновляем лимиты · Показаны сохранённые данные' : 'Обновить лимиты';
+  limitsRefreshButton.title = failed ? t("retryLimit", { status: statusText })
+    : busy ? t("refreshingSaved") : t("refreshLimits");
   limitsRefreshButton.classList.toggle('has-error', failed);
   if (failed) limitsRefreshButton.setAttribute('aria-describedby', 'limitsStatus');
   else limitsRefreshButton.removeAttribute('aria-describedby');
@@ -1460,7 +1501,7 @@ function renderLimits() {
     const item = limitsNode('section','limits-provider');
     const heading = limitsNode('div','limits-provider-heading');
     heading.append(limitsNode('h3','',String(provider.name || (provider.id === 'codex' ? 'Codex' : 'OpenCode Go')).slice(0,80)));
-    if (unknown || partial || old) heading.append(limitsNode('span','limits-state',unknown ? 'Нет данных' : partial ? 'Часть лимитов неизвестна' : 'Устарело'));
+    if (unknown || partial || old) heading.append(limitsNode('span','limits-state',unknown ? t("noData") : partial ? t("partialLimits") : t("staleLimits")));
     item.append(heading);
     const rows = limitsNode('ul','limits-windows');
     for (const window of (Array.isArray(provider.windows) ? provider.windows : []).slice(0,24)) {
@@ -1472,19 +1513,19 @@ function renderLimits() {
       const stale = old || expired || ['stale','expired'].includes(window.status);
       const row = limitsNode('li','limits-window');
       const line = limitsNode('div','limits-window-line');
-      line.append(limitsNode('span','',String(window.label || 'Лимит').slice(0,80)),limitsNode('strong','',known ? `${stale ? 'Было' : 'Осталось'} ${new Intl.NumberFormat('ru-RU',{maximumFractionDigits:1}).format(remaining)}%` : 'Нет данных'));
+      line.append(limitsNode('span','',String(window.label || t("limit")).slice(0,80)),limitsNode('strong','',known ? t(stale ? "previousRemaining" : "remaining", { value: new Intl.NumberFormat(locale, { style:"percent", maximumFractionDigits:1 }).format(remaining / 100) }) : t("noData")));
       row.append(line);
       if (known && !stale) {
         const track = limitsNode('div','limits-track');
-        track.setAttribute('role','meter');track.setAttribute('aria-label',`${window.label || 'Лимит'}: осталось`);
+        track.setAttribute('role','meter');track.setAttribute('aria-label',t("remainingLabel", { label: window.label || t("limit") }));
         track.setAttribute('aria-valuenow',String(remaining));track.setAttribute('aria-valuemin','0');track.setAttribute('aria-valuemax','100');
         const fill = limitsNode('span','');fill.style.width=`${remaining}%`;track.append(fill);row.append(track);
       }
-      row.append(limitsNode('p','limits-reset',expired ? 'Окно завершилось · ждём новые данные' : reset ? `Сброс ${reset}` : 'Время сброса неизвестно'));
+      row.append(limitsNode('p','limits-reset',expired ? t("limitWindowEnded") : reset ? t("resetAt", { time: reset }) : t("resetUnknown")));
       rows.append(row);
     }
     item.append(rows);
-    if (!rows.children.length) item.append(limitsNode('p','limits-message','Лимиты подписки пока неизвестны.'));
+    if (!rows.children.length) item.append(limitsNode('p','limits-message',t("subscriptionUnknown")));
     item.append(limitsNode('p','limits-observed',limitsAge(provider.observed_at)));
     host.append(item);
   }
@@ -1494,7 +1535,7 @@ function renderLimits() {
     const known = typeof raw === 'string' && /^\d+\.\d{8}$/.test(raw) && Number.isFinite(Number(raw));
     const stale = limitsOld(wallet.observed_at) || wallet.stale || wallet.status !== 'known' || !!limitsValue.error || !!limitsError;
     const line = limitsNode('div','limits-extra-line');
-    line.append(limitsNode('span','','OpenCode Extra Usage'),limitsNode('strong','',known ? `${stale ? 'Было доступно' : 'Доступно'} ${new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(raw))}` : 'Баланс неизвестен'));
+    line.append(limitsNode('span','','OpenCode Extra Usage'),limitsNode('strong','',known ? t(stale ? "balancePrevious" : "balanceAvailable", { value: new Intl.NumberFormat(locale,{style:'currency',currency:'USD'}).format(Number(raw)) }) : t("balanceUnknown")));
     extra.append(line,limitsNode('p','limits-observed',limitsAge(wallet.observed_at)));
   }
   positionLimits();syncMousePassthrough();
@@ -1505,10 +1546,10 @@ async function refreshLimits() {
   try {
     const value = await window.codexPets.readLimits();
     if (value && typeof value === 'object' && !Array.isArray(value)) {limitsValue = value; limitsError = '';}
-    else limitsError = 'Данные о лимитах ещё не получены.';
+    else limitsError = t("limitsPending");
   } catch {
     if (limitsValue) limitsValue = {...limitsValue,error:'console_unavailable'};
-    limitsError = 'Лимиты пока недоступны. Повторите открытие панели.';
+    limitsError = t("limitsUnavailable");
   } finally {
     limitsReading = false;
     if (limitsOpen) {renderLimits();syncMousePassthrough();}
@@ -1530,8 +1571,8 @@ function updateLimitsVisibility() {
     drawerSide = null;
   }
   limitsButton.setAttribute('aria-expanded',String(limitsOpen));
-  limitsButton.setAttribute('aria-label',limitsOpen ? 'Скрыть лимиты' : 'Показать лимиты');
-  limitsButton.title = limitsOpen ? 'Скрыть лимиты' : 'Показать лимиты';
+  limitsButton.setAttribute('aria-label',limitsOpen ? t("hideLimits") : t("showLimits"));
+  limitsButton.title = limitsOpen ? t("hideLimits") : t("showLimits");
   if (limitsTimer) window.clearInterval(limitsTimer);
   if (limitsAgeTimer) window.clearInterval(limitsAgeTimer);
   limitsTimer = limitsAgeTimer = null;
@@ -1559,7 +1600,7 @@ async function setLimitsOpen(value) {
       limitsOpen = typeof actual?.open === 'boolean' ? actual.open : prior;
       updateLimitsVisibility();
       if (actual) applyLimitsLayout(actual);
-      limitsButton.title = 'Не удалось изменить панель лимитов. Повторите.';
+      limitsButton.title = t("limitsToggleFailed");
     }
   } finally {if(generation === limitsGeneration)limitsChanging=false;}
 }
@@ -1583,7 +1624,7 @@ async function requestLimitsRefresh() {
     void refreshLimits();
   } catch {
     limitsRefreshOpenedAt = 0;
-    limitsError = 'Не удалось обновить лимиты. Показаны сохранённые данные.';
+    limitsError = t("refreshFailed");
     if (limitsOpen) renderLimits();
   }
 }
@@ -1603,7 +1644,7 @@ document.getElementById("importPet").onclick = async event => {
     await selectPet(id);
     if (settingsOpen) positionSettingsPopover();
   } catch {
-    message.textContent = "Не удалось установить пакет. Проверьте файл персонажа.";
+    message.textContent = t("installPackError");
   } finally {
     button.disabled = false;
   }
@@ -1644,7 +1685,7 @@ idleAnimationSelect.addEventListener("change", async () => {
     console.error(error);
     if (revision === idleAnimationRevision) {
       applyIdleAnimationMode(savedIdleAnimationMode);
-      idleAnimationStatus.textContent = "Не удалось сохранить настройку.";
+      idleAnimationStatus.textContent = t("saveIdleError");
       if (settingsOpen) positionSettingsPopover();
     }
   }
@@ -1677,7 +1718,7 @@ document.getElementById("busyBubbleToggle").addEventListener("change", async eve
     const saved = await window.codexPets.updateSettings({showBusyBubble:event.target.checked});
     showBusyBubble = saved.showBusyBubble !== false;
   } catch {
-    document.getElementById("consoleError").textContent = "Не удалось сохранить настройку облачка.";
+    document.getElementById("consoleError").textContent = t("saveBubbleError");
     setPopoverOpen(true);
   }
   updateBusyBubble();
@@ -1690,7 +1731,7 @@ document.getElementById("taskLabelToggle").addEventListener("change", async even
     applyTaskLabel(saved.showTaskLabel !== false);
   } catch {
     applyTaskLabel(showTaskLabel);
-    document.getElementById("consoleError").textContent = "Не удалось сохранить настройку подписи.";
+    document.getElementById("consoleError").textContent = t("saveTaskLabelError");
     setPopoverOpen(true);
   }
 });

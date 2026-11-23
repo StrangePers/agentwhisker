@@ -26,9 +26,9 @@
     };
   }
 
-  function buildSkinMenu(pets, selectedId, select) {
+  function buildSkinMenu(pets, selectedId, select, characterLabel = 'Character') {
     return {
-      label: 'Персонаж',
+      label: characterLabel,
       submenu: pets.map(pet => ({
         label: pet.displayName, type: 'radio', checked: pet.id === selectedId,
         click: () => select(pet.id),

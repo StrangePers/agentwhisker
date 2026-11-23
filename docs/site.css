@@ -44,7 +44,7 @@ figure { margin: 0; }
 .stage { border: 1px solid var(--line); border-radius: 1rem; overflow: hidden; background: var(--surface); }
 .stage img { display: block; width: 100%; height: auto; }
 .stage figcaption { padding: 0.65rem 1rem; border-top: 1px solid var(--line); color: var(--muted); }
-.stage figcaption span { display: inline-block; width: .55rem; height: .55rem; border-radius: 50%; background: var(--orange); margin-right: .25rem; }
+.stage-indicator { display: inline-block; width: .55rem; height: .55rem; border-radius: 50%; background: var(--orange); margin-right: .25rem; }
 .section-intro { border-top: 1px solid var(--line); padding-top: 2rem; }
 .motion-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
 .motion-grid figure { min-width: 0; }
@@ -76,4 +76,19 @@ code { color: var(--orange); overflow-wrap: anywhere; }
   .brand img { width: 30px; height: 30px; }
   .hero h1 { font-size: 3.2rem; }
   .motion-grid { gap: .75rem; }
+}
+
+#site-language {
+  max-width: 8rem;
+  padding: .3rem .4rem;
+  color: var(--paper);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: .35rem;
+  font: inherit;
+}
+.app-languages { font-size: .93rem; margin-bottom: 0; }
+@media (max-width: 560px) {
+  .header { flex-wrap: wrap; }
+  .header nav { width: 100%; justify-content: space-between; }
 }

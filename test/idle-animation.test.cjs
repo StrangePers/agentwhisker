@@ -52,6 +52,7 @@ function loadRenderer(decode) {
       return timerId;
     },
     clearTimeout: id => timers.delete(id),
+    AgentWhiskerLocale: require("../src/locale"),
     AgentWhiskerGeometry: { load: () => pending, contains: (mask, x) => mask === 0 && x === 20 },
     codexPets: {
       listProviders: () => pending,
@@ -62,6 +63,7 @@ function loadRenderer(decode) {
     },
   };
   const document = {
+    documentElement: {},
     activeElement: null,
     getElementById: element,
     querySelector: element,

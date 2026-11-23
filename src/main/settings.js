@@ -43,8 +43,10 @@ const fs = __importStar(require("node:fs/promises"));
 const path = __importStar(require("node:path"));
 const { randomUUID } = require("node:crypto");
 const pendingUpdates = new Map();
+const { normalizeLocale } = require("../locale");
 const registry_1 = require("./providers/registry");
 exports.DEFAULT_SETTINGS = {
+    locale: "",
     selectedPetId: "",
     selectedState: "auto",
     provider: "desktop",
@@ -95,6 +97,7 @@ function updateSettings(settingsPath, patch) {
 function normalizeSettings(value) {
     const input = value && typeof value === "object" ? value : {};
     return {
+        locale: normalizeLocale(input.locale),
         selectedPetId: cleanString(input.selectedPetId),
         selectedState: normalizeState(input.selectedState),
         customSource: input.customSource === true,

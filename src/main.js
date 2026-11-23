@@ -103,10 +103,18 @@ function parseArgs(argv) {
 function getCodexHome(args) {
     return path.resolve(args.codexHome || process.env.CODEX_HOME || path.join(electron_1.app.getPath("home"), ".codex"));
 }
+const { chooseLocale, translator } = require("./locale");
+let labels = translator("en");
+const t = (key, values) => labels.t(key, values);
+function useLocale(preference) {
+    labels = translator(chooseLocale(preference, ...electron_1.app.getPreferredSystemLanguages()));
+}
+
 async function createWindow(args) {
     const codexHome = getCodexHome(args);
     const settingsPath = path.join(electron_1.app.getPath("userData"), "settings.json");
     const settings = await (0, settings_1.readSettings)(settingsPath);
+    useLocale(settings.locale);
     const pets = await listCharacters();
     if (args.validatePet) {
         const result = await (0, validate_pet_1.validatePetPackage)(args.validatePet);
@@ -193,6 +201,7 @@ async function createWindow(args) {
     win.loadFile(path.join(__dirname, "renderer.html"), {
         query: {
             codexHome,
+            locale: labels.locale,
             statusFile: effectiveSettings.statusFile,
             managed: managedFile && !restoreSource ? "1" : "",
             managedFile,
@@ -214,14 +223,18 @@ function wireTray(win) {
     }
     appTray.setToolTip("AgentWhisker");
     appTray.on("click", () => { win.show(); win.focus(); });
-    appTray.setContextMenu(electron_1.Menu.buildFromTemplate([
-        { label: "Показать AgentWhisker", click: () => win.show() },
-        { label: "Скрыть", click: () => win.hide() },
-        { type: "separator" },
-        { label: "Закрыть AgentWhisker", click: () => electron_1.app.quit() },
-    ]));
+    updateTrayMenu(win);
     win.once("closed", destroyTray);
     electron_1.app.once("before-quit", destroyTray);
+}
+function updateTrayMenu(win) {
+    if (!appTray || !win || win.isDestroyed()) return;
+    appTray.setContextMenu(electron_1.Menu.buildFromTemplate([
+        { label: t("showApp"), click: () => win.show() },
+        { label: t("hideApp"), click: () => win.hide() },
+        { type: "separator" },
+        { label: t("quitApp"), click: () => electron_1.app.quit() },
+    ]));
 }
 function destroyTray() {
     if (!appTray)
@@ -239,7 +252,7 @@ function openConsole(taskId) {
     if (taskId) args.push("--task", taskId);
     return new Promise((resolve, reject) => {
         require("node:child_process").execFile(python, args, {windowsHide:true, timeout:35000}, error => {
-            if (error) reject(new Error("Не удалось переключить вкладку Console."));
+            if (error) reject(new Error(t("consoleOpenFailed")));
             else resolve();
         });
     });
@@ -268,18 +281,18 @@ function registerIpcHandlers() {
         const settings = await (0, settings_1.readSettings)(settingsPath);
         const send = command => { if (!win.isDestroyed()) win.webContents.send("console:command", command); };
         const menu = electron_1.Menu.buildFromTemplate([
-            { label: "Панель задач", type: "checkbox", checked: state?.panelOpen === true,
+            { label: t("taskPanel"), type: "checkbox", checked: state?.panelOpen === true,
               click: item => send({action:"panel", value:item.checked}) },
-            { label: "Лимиты подписок", visible:Boolean(process.env.AGENT_CONSOLE_PET_PYTHON), type: "checkbox", checked: settings.limitsPanelOpen === true,
+            { label: t("usageLimits"), visible:Boolean(process.env.AGENT_CONSOLE_PET_PYTHON), type: "checkbox", checked: settings.limitsPanelOpen === true,
               click: item => send({action:"limits", value:item.checked}) },
-            { label: "Настройки питомца", click: () => send({action:"settings"}) },
+            { label: t("petSettings"), click: () => send({action:"settings"}) },
             { type: "separator" },
-            { label: "Показать Agent Console", visible:Boolean(process.env.AGENT_CONSOLE_PET_PYTHON), click: () => {
-                openConsole().catch(() => send({action:"error", message:"Откройте Agent Console через её ярлык и повторите переход."}));
+            { label: t("showConsole"), visible:Boolean(process.env.AGENT_CONSOLE_PET_PYTHON), click: () => {
+                openConsole().catch(() => send({action:"error", message:t("openConsoleAgain")}));
               }},
             { type: "separator" },
-            { label: "Скрыть AgentWhisker", click: () => win.hide() },
-            { label: "Завершить AgentWhisker", click: () => electron_1.app.quit() },
+            { label: t("hideApp"), click: () => win.hide() },
+            { label: t("quitApp"), click: () => electron_1.app.quit() },
         ]);
         win.setIgnoreMouseEvents(false);
         await new Promise(resolve => menu.popup({window:win, callback:resolve}));
@@ -293,8 +306,8 @@ function registerIpcHandlers() {
     electron_1.ipcMain.handle("pets:import", async event => {
         const win = electron_1.BrowserWindow.fromWebContents(event.sender);
         const result = await electron_1.dialog.showOpenDialog(win, {
-            title:"Установить персонажа", properties:["openFile"],
-            filters:[{name:"Пакет AgentWhisker",extensions:["whiskerpack","folkpack","pippack","wisppack"]}]
+            title:t("installCharacter"), properties:["openFile"],
+            filters:[{name:t("packFilter"),extensions:["whiskerpack","folkpack","pippack","wisppack"]}]
         });
         if (result.canceled || !result.filePaths.length) return null;
         return importCharacter(result.filePaths[0]);
@@ -302,7 +315,15 @@ function registerIpcHandlers() {
     electron_1.ipcMain.handle("providers:list", async () => (0, providers_1.listProviders)());
     electron_1.ipcMain.handle("activity:read", async (_event, options) => (0, activity_1.readActivity)(options));
     electron_1.ipcMain.handle("settings:get", async () => (0, settings_1.readSettings)(path.join(electron_1.app.getPath("userData"), "settings.json")));
-    electron_1.ipcMain.handle("settings:update", async (_event, patch) => (0, settings_1.updateSettings)(path.join(electron_1.app.getPath("userData"), "settings.json"), patch));
+    electron_1.ipcMain.handle("settings:update", async (event, patch) => {
+        const saved = await (0, settings_1.updateSettings)(path.join(electron_1.app.getPath("userData"), "settings.json"), patch);
+        if (patch && Object.hasOwn(patch, "locale")) {
+            useLocale(saved.locale);
+            updateTrayMenu(electron_1.BrowserWindow.fromWebContents(event.sender));
+            return { ...saved, effectiveLocale: labels.locale };
+        }
+        return saved;
+    });
     electron_1.ipcMain.on("window:set-ignore-mouse-events", (event, ignore, options) => {
         const win = electron_1.BrowserWindow.fromWebContents(event.sender);
         if (!win || win.isDestroyed())

@@ -6,7 +6,7 @@ AgentWhisker gives your coding agent an animated presence on the Windows desktop
 
 Download **AgentWhisker-0.1.0-win-x64.zip**, extract the entire archive, and open **AgentWhisker.exe**. Keep the executable alongside the files that came with it. The ZIP is a portable Windows x64 build and includes Kitsu.
 
-Hover over Kitsu and click the gear to preview her animations. Under **Анимация в покое** (Idle animation), choose **Постоянно** (Continuous, the default) or **Только при событиях** (Only on events).
+Hover over Kitsu and click the gear to preview her animations. The idle animation setting lets you choose continuous motion or motion triggered by events.
 
 ## What’s included
 
@@ -16,4 +16,4 @@ Hover over Kitsu and click the gear to preview her animations. Under **Аним�
 - Standalone mode, a JSON status file for your own integration, and an optional Agent Console bridge.
 - Import for additional `.whiskerpack` character packs.
 
-This build was tested on Windows 11 x64. The app interface is in Russian. The executable is unsigned, and Windows may show a publisher warning. The release checksum is provided in **SHA256SUMS.txt**. The source is MIT-licensed, with separate terms for character artwork in `ARTWORK.md`.
+This build was tested on Windows 11 x64. The executable is unsigned, and Windows may show a publisher warning. The release checksum is provided in **SHA256SUMS.txt**. The source is MIT-licensed, with separate terms for character artwork in `ARTWORK.md`.
