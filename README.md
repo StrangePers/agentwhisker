@@ -11,6 +11,8 @@
 
 Kitsu rests when your agent is idle, types while it works, waits when a decision is needed, and reacts to errors. She lives in a transparent window on your desktop. Click through the background to keep working in the windows beneath her.
 
+Connect **Codex, Claude Code, OpenCode, or Qwen Code** directly from the gear menu. [Connect your agent](#connect-codex-claude-code-opencode-or-qwen-code).
+
 ## Meet Kitsu
 
 ![Kitsu’s four animations shown side by side: idle, running, waiting for a decision, and error](docs/media/kitsu-states.gif)
@@ -19,7 +21,7 @@ Kitsu rests when your agent is idle, types while it works, waits when a decision
 
 1. Download the portable **Windows x64** ZIP from [GitHub Releases](../../releases).
 2. Extract the whole archive and open **AgentWhisker.exe**.
-3. Hover over Kitsu and click the gear to see her animations and change her settings.
+3. Start your coding agent, hover over Kitsu, and choose the agent under **Source** in the gear menu.
 
 The tray menu shows, hides, or quits AgentWhisker. **Idle animation** runs continuously by default. Switch it to **Only on events** to keep Kitsu still between tasks. The free download includes Kitsu. Additional characters can be imported from a `.whiskerpack` file in settings.
 
@@ -34,7 +36,20 @@ The tray menu shows, hides, or quits AgentWhisker. **Idle animation** runs conti
 
 AgentWhisker is available in English, Spanish, Simplified Chinese, and Hindi. It follows your system language by default and uses English when no supported system language is available. Choose **Language** in the companion settings to override it. Task titles and messages from connected sources stay in their original language.
 
-## Connect a status source
+## Connect Codex, Claude Code, OpenCode, or Qwen Code
+
+Start your coding agent under the same Windows user account. Hover over Kitsu, open the gear menu, expand **Source**, and choose your agent. AgentWhisker reads the agent's local session state. The standalone connection works with the agent and AgentWhisker installed.
+
+| Source | What AgentWhisker reads |
+|---|---|
+| Codex | Local session records from `CODEX_HOME` or `~/.codex` |
+| Claude Code | Top-level project session records from `CLAUDE_CONFIG_DIR` or `~/.claude` |
+| OpenCode | The local OpenCode service when it is running, or the local session database in read-only mode |
+| Qwen Code | Compatible local project session records from `QWEN_RUNTIME_DIR`, `QWEN_HOME`, or `~/.qwen` |
+
+OpenCode's running service exposes pending questions and permission requests. The transcript sources can show a question when the agent records its input request. Start a session in the agent to populate its source. T3Code remains experimental.
+
+## Connect a JSON status file
 
 AgentWhisker starts in standalone mode. Pick a JSON status file in settings or pass its path on launch.
 
@@ -46,7 +61,7 @@ A status file can contain `{"state":"running","title":"Building the project"}`. 
 
 ## Build and test
 
-Build on Windows x64 with Node.js 22.12 or newer.
+Build on Windows x64 with Node.js 22.13 or newer.
 
 ```powershell
 npm ci

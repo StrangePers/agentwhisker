@@ -64,41 +64,117 @@ async function readOpenCodeActivity(options = {}) {
     }
 }
 async function runOpenCodeSessionList(options = {}) {
-    const maxCount = Number.isFinite(options.maxCount) ? String(options.maxCount) : "8";
+    const limit = Math.max(1, Math.min(50, Number(options.maxCount) || 8));
+    if (!options.databasePath || options.serviceFile) {
+        const serverSessions = await readOpenCodeServiceSessions(options, limit);
+        if (serverSessions) return serverSessions;
+    }
     try {
-        return await runOpenCodeDbSessionList(maxCount, options);
-    }
-    catch {
-        return (0, shared_1.execJson)("opencode", ["session", "list", "--format", "json", "--max-count", maxCount], options);
+        return await runOpenCodeDbSessionList(limit, options);
+    } catch (error) {
+        if (options.databasePath) throw error;
+        return (0, shared_1.execJson)("opencode", ["session", "list", "--format", "json", "--max-count", String(limit)], options);
     }
 }
-function runOpenCodeDbSessionList(maxCount, options = {}) {
-    const limit = Math.max(1, Math.min(50, Number(maxCount) || 8));
-    const query = `
-select
-  s.id,
-  s.title,
-  s.directory,
-  s.project_id,
-  s.time_created,
-  s.time_updated,
-  s.time_archived,
-  m.data as message_data,
-  p.data as part_data
-from session s
-left join message m on m.id = (
-  select id from message where session_id = s.id order by time_updated desc limit 1
-)
-left join part p on p.id = (
-  select id from part where session_id = s.id order by time_updated desc limit 1
-)
-where s.time_archived is null
-order by s.time_updated desc
-limit ${limit}`;
-    return (0, shared_1.execJson)("opencode", ["db", "--format", "json", query], options);
+
+async function readOpenCodeServiceSessions(options, limit) {
+    const stateHome = process.env.XDG_STATE_HOME || path.join(os.homedir(), ".local", "state");
+    const file = options.serviceFile || path.join(stateHome, "opencode", "service.json");
+    try {
+        const service = JSON.parse(await fs.readFile(file, "utf8"));
+        const url = new URL(service.url);
+        if (url.protocol !== "http:" || !["127.0.0.1", "[::1]"].includes(url.hostname) ||
+            !url.port || url.username || url.password || typeof service.password !== "string") return null;
+        const headers = { Authorization: "Basic " + Buffer.from("opencode:" + service.password).toString("base64") };
+        const get = async endpoint => {
+            try {
+                const response = await fetch(new URL(endpoint, url), {
+                    headers, redirect: "error", signal: AbortSignal.timeout(1500),
+                });
+                return response.ok ? (await response.json()).data : null;
+            } catch { return null; }
+        };
+        const [sessions, forms, permissions] = await Promise.all([
+            get("/api/session?archived=false&parentID=null&limit=" + limit),
+            get("/api/form"),
+            get("/api/permission/request"),
+        ]);
+        if (!Array.isArray(sessions)) return null;
+        const waiting = new Set([...asList(forms), ...asList(permissions)].map(entry => entry.sessionID));
+        return sessions.map(session => ({
+            schema: "opencode-v2", connected: true, waiting: waiting.has(session.id),
+            id: session.id, title: session.title, directory: session.location?.directory, project_id: session.projectID,
+            time_updated: session.time?.updated, time_busy: session.time?.busy, time_idle: session.time?.idle,
+            idle_outcome: session.outcome,
+        }));
+    } catch { return null; }
 }
+
+function asList(value) {
+    return Array.isArray(value) ? value : [];
+}
+
+async function runOpenCodeDbSessionList(limit, options = {}) {
+    const dataHome = process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share");
+    const file = options.databasePath || path.join(dataHome, "opencode", "opencode.db");
+    await fs.access(file);
+    const { DatabaseSync } = require("node:sqlite");
+    const db = new DatabaseSync(file, { readOnly: true });
+    try {
+        const v2 = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='session_v2'").get();
+        if (v2) {
+            return db.prepare(`
+                SELECT 'opencode-v2' AS schema, id, title, directory, project_id, time_updated, time_busy, time_idle, idle_outcome
+                FROM session_v2 WHERE time_archived IS NULL AND parent_id IS NULL ORDER BY time_updated DESC LIMIT ?
+            `).all(limit);
+        }
+        return db.prepare(`
+            SELECT s.id, s.title, s.directory, s.project_id, s.time_created, s.time_updated,
+                m.data AS message_data, p.data AS part_data
+            FROM session s
+            LEFT JOIN message m ON m.id = (
+                SELECT id FROM message WHERE session_id = s.id ORDER BY time_updated DESC LIMIT 1
+            )
+            LEFT JOIN part p ON p.id = (
+                SELECT id FROM part WHERE session_id = s.id ORDER BY time_updated DESC LIMIT 1
+            )
+            WHERE s.time_archived IS NULL ORDER BY s.time_updated DESC LIMIT ?
+        `).all(limit);
+    } finally {
+        db.close();
+    }
+}
+
+function normalizeV2Session(item, now) {
+    const stamp = value => typeof value === "number" ? value : Date.parse(value);
+    const busyAt = stamp(item.time_busy);
+    const idleAt = stamp(item.time_idle);
+    const recent = +now - (stamp(item.time_updated) || busyAt || idleAt);
+    let state = "idle";
+    if (item.waiting) state = "waiting";
+    else if (Number.isFinite(busyAt) && (!Number.isFinite(idleAt) || busyAt > idleAt) &&
+        (item.connected || recent <= 90_000)) state = "running";
+    else if (Number.isFinite(idleAt) && +now - idleAt <= 20 * 60_000) {
+        if (item.idle_outcome === "failed") state = "failed";
+        if (item.idle_outcome === "succeeded") state = "review";
+    }
+    return {
+        id: item.id,
+        title: item.title || item.directory || "OpenCode session",
+        detail: "OpenCode",
+        state,
+        petState: (0, codex_1.mapActivityToPetState)(state),
+        updatedAt: new Date(stamp(item.time_updated) || +now).toISOString(),
+        directory: item.directory,
+        projectId: item.project_id,
+    };
+}
+
 function normalizeSessions(output, now = new Date()) {
     const rows = Array.isArray(output) ? output : Array.isArray(output?.sessions) ? output.sessions : [];
+    if (rows.some(item => item?.schema === "opencode-v2")) {
+        return rows.filter(item => item?.schema === "opencode-v2").map(item => normalizeV2Session(item, now));
+    }
     if (rows.some((item) => item && ("time_updated" in item || "message_data" in item || "part_data" in item))) {
         return rows
             .map((item, index) => normalizeDbSession(item, index, now))

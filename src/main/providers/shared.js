@@ -58,7 +58,7 @@ async function execJson(command, args, options = {}) {
     return stdout.trim() ? JSON.parse(stdout) : [];
 }
 function aggregateActivity(source, sessions, now = new Date(), extra = {}) {
-    const active = sessions.find((item) => item.state === "running" || item.state === "waiting") || sessions[0] || null;
+    const active = sessions.find((item) => item.state === "waiting") || sessions.find((item) => item.state === "running") || sessions[0] || null;
     const state = active?.state || "idle";
     return {
         source,
@@ -131,13 +131,11 @@ function normalizeCommandSession(item, index, source, now) {
         latestEvent: detail,
     };
 }
-async function findRecentFiles(rootDir, predicate, limit = 8) {
+async function findRecentFiles(rootDir, predicate, limit = 8, maxDepth = Infinity) {
     const files = [];
-    const stack = [rootDir];
+    const stack = [{ dir: rootDir, depth: 0 }];
     while (stack.length > 0) {
-        const dir = stack.pop();
-        if (!dir)
-            continue;
+        const { dir, depth } = stack.pop();
         let entries = [];
         try {
             entries = await fs.readdir(dir, { withFileTypes: true });
@@ -147,9 +145,9 @@ async function findRecentFiles(rootDir, predicate, limit = 8) {
         }
         for (const entry of entries) {
             const fullPath = path.join(dir, entry.name);
-            if (entry.isDirectory())
-                stack.push(fullPath);
-            else if (entry.isFile() && predicate(fullPath, entry.name)) {
+            if (entry.isDirectory() && depth < maxDepth)
+                stack.push({ dir: fullPath, depth: depth + 1 });
+            else if (entry.isFile() && predicate(fullPath, entry.name, dir)) {
                 try {
                     const stat = await fs.stat(fullPath);
                     files.push({ filePath: fullPath, stat });
@@ -163,17 +161,21 @@ async function findRecentFiles(rootDir, predicate, limit = 8) {
     return files.sort((left, right) => right.stat.mtimeMs - left.stat.mtimeMs).slice(0, limit);
 }
 async function readJsonlTail(filePath, limit = 120) {
+    let file;
     try {
-        const text = await fs.readFile(filePath, "utf8");
-        return text
-            .split(/\r?\n/)
-            .filter(Boolean)
-            .slice(-limit)
-            .map((line) => parseJsonLine(line))
-            .filter(Boolean);
-    }
-    catch {
+        file = await fs.open(filePath, "r");
+        const { size } = await file.stat();
+        const bytes = Math.min(size, 256 * 1024);
+        const position = size - bytes;
+        const buffer = Buffer.alloc(bytes);
+        const { bytesRead } = await file.read(buffer, 0, bytes, position);
+        const lines = buffer.subarray(0, bytesRead).toString("utf8").split(/\r?\n/);
+        if (position > 0) lines.shift();
+        return lines.filter(Boolean).slice(-limit).map(parseJsonLine).filter(Boolean);
+    } catch {
         return [];
+    } finally {
+        await file?.close();
     }
 }
 function parseJsonLine(line) {

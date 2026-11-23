@@ -15,9 +15,9 @@ exports.PROVIDER_METADATA = [
     {
         id: "opencode",
         label: "OpenCode",
-        modes: ["bridge-file", "command"],
+        modes: ["local-api", "sqlite", "bridge-file", "command"],
         defaultRefreshMs: 8000,
-        setupHint: "Install the OpenCode plugin for realtime status, with CLI fallback for recent sessions.",
+        setupHint: "Reads the local OpenCode service when available, with a read-only session database fallback.",
     },
     {
         id: "claude-code",
@@ -25,6 +25,13 @@ exports.PROVIDER_METADATA = [
         modes: ["jsonl"],
         defaultRefreshMs: 8000,
         setupHint: "Reads local Claude Code project transcripts without exposing prompt or response text.",
+    },
+    {
+        id: "qwen-code",
+        label: "Qwen Code",
+        modes: ["jsonl"],
+        defaultRefreshMs: 8000,
+        setupHint: "Reads local Qwen Code session metadata.",
     },
     {
         id: "t3code",

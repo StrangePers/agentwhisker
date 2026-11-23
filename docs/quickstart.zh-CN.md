@@ -8,6 +8,8 @@ Kitsu 是一位陪伴编程智能体的动画桌面伙伴。智能体工作时�
 2. 解压整个 ZIP 文件，然后运行 **AgentWhisker.exe**。
 3. 将光标移到 Kitsu 上方，点击齿轮，即可更改**语言**或预览动画。
 
-在**空闲动画**中选择**持续播放**或**仅在有事件时**。可连接 JSON 状态文件，也可使用 Agent Console 桥接。免费版包含 Kitsu。
+启动 Codex、Claude Code、OpenCode 或 Qwen Code，然后在 Kitsu 设置的**来源**中选择对应的智能体。也可以连接 JSON 状态文件或使用 Agent Console。
+
+在**空闲动画**中选择**持续播放**或**仅在有事件时**。免费版包含 Kitsu。
 
 [项目网站](https://strangepers.github.io/agentwhisker/?lang=zh-CN) · [英文技术文档](../README.md)

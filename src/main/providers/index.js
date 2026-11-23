@@ -15,6 +15,7 @@ const PROVIDER_READERS = {
     codex: (options) => (0, codex_1.readCodexActivity)(options.codexHome || "", options),
     opencode: opencode_1.readOpenCodeActivity,
     "claude-code": claude_code_1.readClaudeCodeActivity,
+    "qwen-code": claude_code_1.readQwenCodeActivity,
     t3code: t3code_1.readT3CodeActivity,
     "json-status": (options) => (0, json_status_1.readJsonStatusActivity)(options.statusFile, options),
     desktop: desktop_1.readDesktopActivity,

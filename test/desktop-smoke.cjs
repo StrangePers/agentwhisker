@@ -11,7 +11,7 @@ const { _electron } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
    const app=await _electron.launch({executablePath:exe,env,args:["--user-data-dir="+profile]});
    try {
      const page=await app.firstWindow();page.setDefaultTimeout(10000);
-     await page.waitForFunction(()=>shape && selectedPetId && document.querySelector("#liveStatus").textContent);
+     await page.waitForFunction(()=>typeof shape !== "undefined" && shape && selectedPetId && document.querySelector("#liveStatus").textContent);
      return {app,page};
    } catch(e){await app.close();throw e}
  }

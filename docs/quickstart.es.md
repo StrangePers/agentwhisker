@@ -8,6 +8,8 @@ Kitsu es una compañera animada para agentes de programación. Vive en el escrit
 2. Extrae todo el archivo y ejecuta **AgentWhisker.exe**.
 3. Pasa el cursor sobre Kitsu y abre el engranaje para elegir **Idioma** o ver las animaciones.
 
-Elige **Continua** o **Solo con eventos** en **Animación en reposo**. Puedes usar un archivo de estado JSON o conectar Agent Console. La descarga gratuita incluye a Kitsu.
+Inicia Codex, Claude Code, OpenCode o Qwen Code y elígelo en **Fuente** en los ajustes de Kitsu. También puedes usar un archivo de estado JSON o Agent Console.
+
+Elige **Continua** o **Solo con eventos** en **Animación en reposo**. La descarga gratuita incluye a Kitsu.
 
 [Sitio del proyecto](https://strangepers.github.io/agentwhisker/?lang=es) · [Documentación técnica en inglés](../README.md)

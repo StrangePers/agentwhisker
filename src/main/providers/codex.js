@@ -44,10 +44,15 @@ const fs = __importStar(require("node:fs/promises"));
 const path = __importStar(require("node:path"));
 const ACTIVE_WINDOW_MS = 90 * 1000;
 const REVIEW_WINDOW_MS = 20 * 60 * 1000;
+const WAITING_WINDOW_MS = 30 * 60 * 1000;
 const SESSION_HEAD_BYTES = 64 * 1024;
 const SESSION_TAIL_BYTES = 96 * 1024;
 async function readCodexActivity(codexHome, options = {}) {
     const now = options.now || new Date();
+    if (!codexHome || !(await fs.stat(codexHome).catch(() => null))?.isDirectory()) {
+        return { source: "codex", state: "idle", petState: "idle", active: null, sessions: [],
+            updatedAt: now.toISOString(), error: "Codex data directory is unavailable" };
+    }
     const sessionIndexPath = path.join(codexHome, "session_index.jsonl");
     const entries = await readSessionIndex(sessionIndexPath);
     const recent = await resolveRecentCodexSessions(codexHome, entries);
@@ -57,7 +62,7 @@ async function readCodexActivity(codexHome, options = {}) {
         const sample = sessionPath ? await readSessionSample(sessionPath) : null;
         sessions.push(classifySession(entry, sessionPath, sample, now));
     }
-    const active = sessions.find((item) => item.state === "running" || item.state === "waiting") || sessions[0] || null;
+    const active = sessions.find((item) => item.state === "waiting") || sessions.find((item) => item.state === "running") || sessions[0] || null;
     const aggregateState = active?.state || "idle";
     return {
         source: "codex",
@@ -182,7 +187,7 @@ async function readSessionSample(filePath) {
         return null;
     }
     const allLines = text.split(/\r?\n/).filter(Boolean);
-    const lines = [...allLines.slice(0, 40), ...allLines.slice(-120)];
+    const lines = [...allLines.slice(0, 40), ...allLines.slice(Math.max(40, allLines.length - 120))];
     const records = lines.map((line) => parseJsonLine(line)).filter(Boolean);
     return {
         filePath,
@@ -230,32 +235,7 @@ function classifySession(entry, sessionPath, sample, now) {
     const updatedAt = new Date(entry.updated_at);
     const lastWriteAgeMs = sample ? now.getTime() - sample.mtimeMs : now.getTime() - updatedAt.getTime();
     const records = sample?.records || [];
-    const latestPayload = findLatestPayload(records);
-    const stickyCompleted = hasStickyCompletion(records);
-    const pendingToolCall = !stickyCompleted && hasPendingToolCall(records);
-    const recentlyActive = !stickyCompleted && lastWriteAgeMs <= ACTIVE_WINDOW_MS && hasRecentActivePayload(records);
-    const requestedInput = isRequestUserInputPayload(latestPayload);
-    const failed = isFailurePayload(latestPayload);
-    const completed = isCompletionPayload(latestPayload);
-    let state = "idle";
-    if (stickyCompleted)
-        state = "review";
-    else if (requestedInput)
-        state = "waiting";
-    else if (pendingToolCall || recentlyActive)
-        state = "running";
-    else if (failed)
-        state = "failed";
-    else if (completed)
-        state = "review";
-    else if (isActiveWorkPayload(latestPayload) && lastWriteAgeMs <= ACTIVE_WINDOW_MS)
-        state = "running";
-    else if (isReviewPayload(latestPayload) && lastWriteAgeMs <= REVIEW_WINDOW_MS)
-        state = "review";
-    else if (!latestPayload && lastWriteAgeMs <= ACTIVE_WINDOW_MS)
-        state = "running";
-    else if (lastWriteAgeMs <= REVIEW_WINDOW_MS)
-        state = "review";
+    const { state, latestPayload } = readTurn(records.slice(-120), sample?.mtimeMs ?? +updatedAt, now);
     return {
         id: entry.id,
         title: titleFromFirstUserMessage(records) || normalizeCodexTitle(entry.thread_name) || "Untitled Codex thread",
@@ -267,96 +247,45 @@ function classifySession(entry, sessionPath, sample, now) {
         latestEvent: summarizePayload(latestPayload),
     };
 }
-function hasPendingToolCall(records) {
-    const calls = new Map();
+function readTurn(records, fallbackTime, now) {
+    let state = "idle";
+    let latestPayload = null;
+    let changedAt = fallbackTime;
+    const pendingInput = new Set();
     for (const record of records) {
-        const payload = record.payload;
-        if (!payload || payload.type !== "function_call")
+        const payload = record?.payload;
+        if (!payload || typeof payload !== "object") continue;
+        const type = payload.type;
+        if (isCompletionPayload(payload) || isFailurePayload(payload) || type === "turn_aborted") {
+            pendingInput.clear();
+            state = type === "turn_aborted" ? "idle" : isFailurePayload(payload) ? "failed" : "review";
+        } else if (isWorkStartRecord(record) || isActiveWorkPayload(payload)) {
+            state = "running";
+            if (type === "task_started" || type === "user_message") pendingInput.clear();
+            if (isRequestUserInputPayload(payload)) pendingInput.add(payload.call_id || "");
+            if (type === "function_call_output" || type === "custom_tool_call_output") {
+                pendingInput.delete(payload.call_id || "");
+            }
+        } else {
             continue;
-        calls.set(payload.call_id, true);
+        }
+        latestPayload = payload;
+        const stamp = Date.parse(record.timestamp);
+        changedAt = Number.isFinite(stamp) ? stamp : fallbackTime;
     }
-    for (const record of records) {
-        const payload = record.payload;
-        if (!payload || payload.type !== "function_call_output")
-            continue;
-        calls.delete(payload.call_id);
-    }
-    return calls.size > 0;
+    if (state === "running" && pendingInput.size > 0) state = "waiting";
+    const window = state === "waiting" ? WAITING_WINDOW_MS : state === "running" ? ACTIVE_WINDOW_MS : REVIEW_WINDOW_MS;
+    return { state: +now - changedAt <= window ? state : "idle", latestPayload };
 }
-function hasStickyCompletion(records) {
-    const completionIndex = findLatestCompletionIndex(records);
-    if (completionIndex < 0)
-        return false;
-    for (let index = completionIndex + 1; index < records.length; index += 1) {
-        if (isWorkStartRecord(records[index]))
-            return false;
-    }
-    return true;
-}
-function findLatestCompletionIndex(records) {
-    for (let index = records.length - 1; index >= 0; index -= 1) {
-        if (isCompletionPayload(records[index]?.payload))
-            return index;
-    }
-    return -1;
-}
+
 function isWorkStartRecord(record) {
-    const payload = record?.payload;
-    if (!payload || typeof payload !== "object")
-        return false;
-    if (payload.type === "task_started")
-        return true;
-    if (payload.type === "function_call" || payload.type === "custom_tool_call")
-        return true;
-    if (payload.type === "reasoning")
-        return true;
-    if (payload.type === "agent_message" && payload.phase === "commentary")
-        return true;
-    if (payload.type === "message" && payload.role === "user")
-        return true;
-    if (payload.type === "message" && payload.phase === "commentary")
-        return true;
-    if (payload.type === "user_message")
-        return true;
-    return false;
+    const payload = record.payload;
+    return payload.type === "user_message" || (payload.type === "message" && payload.role === "user");
 }
-function hasRecentActivePayload(records) {
-    for (let index = records.length - 1; index >= 0; index -= 1) {
-        const payload = records[index]?.payload;
-        if (isPassivePayload(payload))
-            continue;
-        if (isCompletionPayload(payload))
-            return false;
-        if (isActiveWorkPayload(payload))
-            return true;
-    }
-    return false;
-}
-function findLatestPayload(records) {
-    for (let index = records.length - 1; index >= 0; index -= 1) {
-        const payload = records[index]?.payload;
-        if (isPassivePayload(payload))
-            continue;
-        if (payload && typeof payload === "object")
-            return payload;
-    }
-    return null;
-}
-function isPassivePayload(payload) {
-    if (!payload || typeof payload !== "object")
-        return false;
-    if (payload.type === "token_count")
-        return true;
-    if (payload.type === "message" && (payload.role === "developer" || payload.role === "system"))
-        return true;
-    return false;
-}
+
 function isRequestUserInputPayload(payload) {
-    if (!payload || typeof payload !== "object")
-        return false;
-    if (payload.type !== "function_call" && payload.type !== "custom_tool_call")
-        return false;
-    return payload.name === "request_user_input";
+    return (payload.type === "function_call" || payload.type === "custom_tool_call") &&
+        typeof payload.name === "string" && /(?:^|[.:/])request_user_input$/.test(payload.name);
 }
 function summarizePayload(payload) {
     if (!payload)
@@ -480,26 +409,12 @@ function isActiveWorkPayload(payload) {
     return false;
 }
 function isFailurePayload(payload) {
-    if (!payload || typeof payload !== "object")
-        return false;
-    const type = typeof payload.type === "string" ? payload.type.toLowerCase() : "";
-    const status = typeof payload.status === "string" ? payload.status.toLowerCase() : "";
-    if (["failed", "failure", "error"].includes(type))
-        return true;
-    if (["failed", "failure", "error"].includes(status))
-        return true;
-    return false;
+    return ["failed", "failure", "error", "task_failed", "turn_failed"].includes(payload.type);
 }
 function isCompletionPayload(payload) {
-    if (!payload || typeof payload !== "object")
-        return false;
-    const type = typeof payload.type === "string" ? payload.type.toLowerCase() : "";
-    const status = typeof payload.status === "string" ? payload.status.toLowerCase() : "";
-    if (["task_complete", "complete", "completed"].includes(type))
-        return true;
-    if (["complete", "completed", "done"].includes(status))
-        return true;
-    return false;
+    return ["task_complete", "complete", "completed", "turn_completed"].includes(payload.type) ||
+        ((payload.type === "agent_message" || (payload.type === "message" && payload.role === "assistant")) &&
+            payload.phase === "final_answer");
 }
 function mapActivityToPetState(state) {
     if (state === "running")

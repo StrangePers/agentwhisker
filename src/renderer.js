@@ -642,7 +642,7 @@ function renderActivity(activity, offline = false) {
   const isEmpty = activity.source === "json-status" && !consoleActiveTask && activity.state === "idle";
   const live = document.getElementById("liveStatus");
   const other = (activity.sessions || []).filter(item => item.id !== active?.id && item.state === "running").length;
-  const question = liveState === "waiting" ? active?.detail : "";
+  const question = liveState === "waiting" && activity.source === "json-status" ? active?.detail : "";
   const linkDown = managed ? t("consoleDown") : t("sourceDown");
   const caption = offline ? linkDown : question || (livePhase === "checking" ? t("checksRunning") : stateNames[liveState]) || t("running");
   live.textContent = caption + (question && other ? ` · ${t("otherTasks", { count: new Intl.NumberFormat(locale).format(other) })}` : "");
@@ -864,8 +864,9 @@ function initializeLanguage(preference) {
 async function loadProviders() {
   const fallback = [
     { id: "codex", label: "Codex", modes: ["jsonl"], defaultRefreshMs: IDLE_REFRESH_MS },
-    { id: "opencode", label: "OpenCode", modes: ["bridge-file", "command"], defaultRefreshMs: IDLE_REFRESH_MS },
+    { id: "opencode", label: "OpenCode", modes: ["local-api", "sqlite", "bridge-file", "command"], defaultRefreshMs: IDLE_REFRESH_MS },
     { id: "claude-code", label: "Claude Code", modes: ["jsonl"], defaultRefreshMs: IDLE_REFRESH_MS },
+    { id: "qwen-code", label: "Qwen Code", modes: ["jsonl"], defaultRefreshMs: IDLE_REFRESH_MS },
     { id: "t3code", label: "T3Code", modes: ["command", "jsonl"], defaultRefreshMs: IDLE_REFRESH_MS },
     { id: "json-status", label: "Status file", modes: ["bridge-file"], requiresStatusFile: true, defaultRefreshMs: IDLE_REFRESH_MS },
     { id: "desktop", label: "Desktop", modes: ["manual"], defaultRefreshMs: DESKTOP_REFRESH_MS },
