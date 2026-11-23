@@ -84,22 +84,48 @@ async function readOpenCodeServiceSessions(options, limit) {
         const get = async endpoint => {
             try {
                 const response = await request(endpoint);
-                return response.ok ? (await response.json()).data : null;
+                return response.ok ? await response.json() : null;
             } catch { return null; }
         };
-        const [sessions, forms, permissions] = await Promise.all([
+        const [list, forms, permissions, shells] = await Promise.all([
             get("/api/session?archived=false&parentID=null&limit=" + limit),
-            get("/api/form"),
-            get("/api/permission/request"),
+            get("/api/form"), get("/api/permission/request"), get("/api/shell"),
         ]);
-        if (!Array.isArray(sessions)) return null;
-        const waiting = new Set([...asList(forms), ...asList(permissions)].map(entry => entry.sessionID));
-        return sessions.map(session => ({
+        if (!Array.isArray(list?.data)) return null;
+        const waiting = new Set([...asList(forms?.data), ...asList(permissions?.data)].map(entry => entry.sessionID));
+        const rows = new Map(list.data.map(session => [session.id, {
             schema: "opencode-v2", connected: true, waiting: waiting.has(session.id),
             id: session.id, title: session.title, directory: session.location?.directory, project_id: session.projectID,
             time_updated: session.time?.updated, time_busy: session.time?.busy, time_idle: session.time?.idle,
             idle_outcome: session.outcome,
-        }));
+        }]));
+        // The shell registry is scoped to a location. An older service may not expose it.
+        if (Array.isArray(shells?.data)) {
+            const directories = new Set(list.data.map(s => s.location?.directory).filter(Boolean));
+            directories.delete(shells.location?.directory);
+            const otherLocations = await Promise.all([...directories].map(async directory => {
+                const query = "?" + new URLSearchParams({"location[directory]":directory});
+                const [commands, forms, permissions] = await Promise.all([
+                    get("/api/shell" + query), get("/api/form" + query), get("/api/permission/request" + query),
+                ]);
+                for (const pending of [...asList(forms?.data), ...asList(permissions?.data)]) {
+                    const session = rows.get(pending.sessionID);
+                    if (session) session.waiting = true;
+                }
+                return commands;
+            }));
+            for (const location of [shells, ...otherLocations]) {
+                for (const shell of asList(location?.data)) {
+                    if (shell.status !== "running" || !shell.id) continue;
+                    const id = shell.metadata?.sessionID || "shell:" + shell.id;
+                    const row = rows.get(id) || {schema:"opencode-v2", connected:true, id,
+                        title:"OpenCode · Shell", directory:shell.cwd, time_updated:shell.time?.started};
+                    row.shellRunning = true;
+                    rows.set(id, row);
+                }
+            }
+        }
+        return [...rows.values()];
     } catch { return null; }
 }
 
@@ -145,6 +171,7 @@ function normalizeV2Session(item, now) {
     const recent = +now - (stamp(item.time_updated) || busyAt || idleAt);
     let state = "idle";
     if (item.waiting) state = "waiting";
+    else if (item.shellRunning) state = "running";
     else if (Number.isFinite(busyAt) && (!Number.isFinite(idleAt) || busyAt > idleAt) &&
         (item.connected || recent <= 90_000)) state = "running";
     else if (Number.isFinite(idleAt) && +now - idleAt <= 20 * 60_000) {
@@ -153,6 +180,7 @@ function normalizeV2Session(item, now) {
     }
     return {
         id: item.id,
+        shellRunning: item.shellRunning === true,
         title: item.title || item.directory || "OpenCode session",
         detail: "OpenCode",
         state,
@@ -259,6 +287,8 @@ function mergeOpenCodeSessions(preferredSessions, fallbackSessions) {
 function mergePreferredSession(session, fallback) {
     if (!fallback)
         return session;
+    if (fallback.shellRunning && session.state !== "waiting")
+        return {...fallback, title: fallback.title || session.title};
     const next = isGenericBridgeRunning(session) && isTerminalOpenCodeState(fallback.state)
         ? {
             ...session,

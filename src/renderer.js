@@ -647,7 +647,7 @@ async function openConsoleTask(taskId) {
 function renderActivity(activity, offline = false) {
   const active = activity.active;
   consoleActiveTask = activity.source === "json-status" && isConsoleTask(active) ? active.id : null;
-  const isEmpty = activity.source === "json-status" && !consoleActiveTask && activity.state === "idle";
+  const isEmpty = (activity.source === "codex-opencode" && !active) || activity.source === "json-status" && !consoleActiveTask && activity.state === "idle";
   const live = document.getElementById("liveStatus");
   const showDiagnostic = !managed && provider !== "desktop";
   const needsRetry = offline || activity.invalidState;
@@ -1346,6 +1346,7 @@ function applyLimitsLayout(layout) {
   appElement.style.height = `${layout.height}px`;
   appElement.style.setProperty("--pet-bottom-offset", `${layout.petBottomOffset || 0}px`);
   fitPetShape();
+  petStage.style.setProperty("--companion-base-width", layout.baseWidth + "px");
   petStage.style.left = `${layout.petOffset + layout.baseWidth / 2}px`;
   positionLimits();
   syncLimitsPanelVisibility();
