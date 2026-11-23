@@ -1,0 +1,9 @@
+node_modules/
+.cache/
+dist/
+*.whiskerpack
+*.folkpack
+*.pippack
+*.wisppack
+__pycache__/
+*.pyc

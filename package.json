@@ -1,0 +1,17 @@
+{
+  "name": "agentwhisker",
+  "productName": "AgentWhisker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Animated desktop companion for coding agents",
+  "main": "src/main.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "node scripts/build-win.cjs",
+    "test": "node --test test/*.test.cjs"
+  },
+  "devDependencies": {
+    "electron": "45.4.1"
+  }
+}
