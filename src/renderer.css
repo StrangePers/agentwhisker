@@ -654,4 +654,34 @@ button:focus-visible, [role=button]:focus-visible { outline: 2px solid #abcaff; 
 
 #agentChoices { margin: 4px 0; padding: 4px 8px; min-width: 0; }
 #agentChoices label { display: flex; align-items: center; gap: 6px; }
-#completedTasks summary { cursor: pointer; font-size: 12px; padding: 5px 0; }
+#completedTasks { border-top: 1px solid #fff3e922; }
+#completedTasks summary {
+  display: grid;
+  grid-template-columns: 7px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  padding: 8px 15px;
+  color: #dbc7b9;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  list-style: none;
+  cursor: pointer;
+}
+#completedTasks summary::-webkit-details-marker { display: none; }
+#completedTasks summary::before {
+  content: "";
+  justify-self: center;
+  width: 5px;
+  height: 5px;
+  border: solid currentColor;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(-45deg);
+}
+#completedTasks[open] summary::before { transform: rotate(45deg); }
+#completedTasks summary:hover { background: #fff3e912; }
+#completedTasks summary:focus-visible {
+  border-radius: 8px;
+  outline: 2px solid #ecad77;
+  outline-offset: -4px;
+}
