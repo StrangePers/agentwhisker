@@ -13,9 +13,9 @@ Kitsu rests when your agent is idle, types while it works, waits when a decision
 
 Connect **Codex, Claude Code, OpenCode, or Qwen Code** directly from the gear menu. [Connect your agent](#connect-codex-claude-code-opencode-or-qwen-code).
 
-On Windows, choose **Codex + OpenCode** to watch both at once. Kitsu’s task bubble shows their active tasks together, with the source next to each task. A task waiting for input takes priority over running tasks.
+In Windows v0.1.9, open **Source → Track agents** and check each agent you want Kitsu to follow. If you previously selected **Codex + OpenCode**, both stay selected. The bubble counts active tasks across your sources. Expand **Recently completed** to see finished work.
 
-In Windows v0.1.8, completed tasks are marked **Done** and Kitsu returns to Idle when no other task needs her attention. Unknown or out-of-date statuses are explained in the list. These entries stay out of the active task count.
+Codex tracking also recognizes a forked chat whose journal begins with its parent’s metadata. When RoleShuttle-Hybrid reports a task ID, Kitsu can group workers in that task’s worktree under one entry. A separate Codex chat still adds one to the count.
 
 ## Meet Kitsu
 
@@ -54,12 +54,12 @@ AgentWhisker is available in English, Spanish, Simplified Chinese, and Hindi. It
 
 ## Connect Codex, Claude Code, OpenCode, or Qwen Code
 
-Start your coding agent under the same user account as AgentWhisker. Hover over Kitsu, open the gear menu, expand **Source**, and choose your agent. AgentWhisker reads the agent's local session state. The source descriptions below reflect the tested Windows release.
+Start your coding agent under the same user account as AgentWhisker. Hover over Kitsu, open the gear menu, expand **Source**, and check your agents. AgentWhisker reads the agent's local session state. The source descriptions below reflect the tested Windows release.
 
 | Source | What AgentWhisker reads |
 |---|---|
 | Codex | Local session records from `CODEX_HOME` or `~/.codex` |
-| Codex + OpenCode | Both local sources in one task list. Keep the local OpenCode service running to see standalone shell commands as they run. |
+| RoleShuttle | Reads the companion status file in the RoleShuttle profile. Hybrid snapshots with task IDs support worktree grouping. |
 | Claude Code | Top-level project session records from `CLAUDE_CONFIG_DIR` or `~/.claude` |
 | OpenCode | The local OpenCode service when it is running, or the local session database in read-only mode |
 | Qwen Code | Compatible local project session records from `QWEN_RUNTIME_DIR`, `QWEN_HOME`, or `~/.qwen` |
