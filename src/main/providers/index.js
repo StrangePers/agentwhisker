@@ -23,6 +23,7 @@ const PROVIDER_READERS = {
 const {createCombinedReader} = require("./combined.cjs");
 const selection = require("../../agent-selection");
 PROVIDER_READERS.roleshuttle = options => (0, json_status_1.readJsonStatusActivity)(options.roleShuttleFile, {...options, managed:true});
+PROVIDER_READERS["agent-console"] = options => (0, json_status_1.readJsonStatusActivity)(options.consoleFile, {...options, managed:true});
 let combinedHome, combinedRead;
 PROVIDER_READERS["codex-opencode"] = options => {
     if (!combinedRead || combinedHome !== options.codexHome) {
@@ -36,9 +37,9 @@ exports.PROVIDERS = [
 ];
 const PROVIDER_BY_ID = new Map(exports.PROVIDERS.map((provider) => [provider.id, provider]));
 async function readProviderActivity(options = {}) {
-    if (options.provider === "roleshuttle" || options.provider?.startsWith("agents:")) {
+    if (options.provider === "roleshuttle" || options.provider === "agent-console" || options.provider?.startsWith("agents:")) {
         const ids = selection.decode(options.provider);
-        const key = JSON.stringify([ids, options.codexHome, options.statusFile, options.roleShuttleFile]);
+        const key = JSON.stringify([ids, options.codexHome, options.statusFile, options.roleShuttleFile, options.consoleFile, options.roleHome]);
         if (combinedHome !== key) {
             combinedHome = key;
             combinedRead = createCombinedReader(Object.fromEntries(ids.map(id => [id, PROVIDER_READERS[id]])), 450, "multi");

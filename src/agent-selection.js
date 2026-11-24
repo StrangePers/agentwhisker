@@ -1,5 +1,5 @@
 (function(root) {
-  const ids = ["codex", "opencode", "claude-code", "qwen-code", "t3code", "roleshuttle", "json-status"];
+  const ids = ["codex", "opencode", "claude-code", "qwen-code", "t3code", "roleshuttle", "agent-console", "json-status"];
   function decode(value) {
     if (value === "codex-opencode") return ["codex", "opencode"];
     const parts = String(value || "").replace(/^agents:/, "").split(",");

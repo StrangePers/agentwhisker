@@ -69,7 +69,7 @@ function getProviderMetadata(id) {
     return provider ? { ...provider, modes: [...provider.modes] } : undefined;
 }
 function normalizeProvider(value) {
-    if (value === "roleshuttle" || typeof value === "string" && value.startsWith("agents:")) {
+    if (value === "roleshuttle" || value === "agent-console" || typeof value === "string" && value.startsWith("agents:")) {
         const selection = require("../../agent-selection");
         return selection.encode(selection.decode(value));
     }

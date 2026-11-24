@@ -345,9 +345,10 @@ function registerIpcHandlers(startupArgs = {}) {
     electron_1.ipcMain.handle("login:set", (_event, value) => loginSetting(electron_1.app, value));
     electron_1.ipcMain.handle("activity:read", async (_event, options) => {
         const revision = alertRevision;
-        const roleShuttleFile = (process.env.AGENT_CONSOLE_PET_PYTHON && startupArgs.statusFile) || process.env.AGENTWHISKER_ROLESHUTTLE_STATUS_FILE || (process.platform === "win32" && process.env.LOCALAPPDATA
-            ? path.join(process.env.LOCALAPPDATA, "AgentConsole-CodeWisp", "status.json") : "");
-        const activity = await (0, activity_1.readActivity)({...options, roleShuttleFile});
+        const roleHome = process.env.ROLESHUTTLE_HOME || path.join(require("node:os").homedir(), ".roleshuttle");
+        const roleShuttleFile = process.env.AGENTWHISKER_ROLESHUTTLE_STATUS_FILE || path.join(roleHome, "agentwhisker-status.json");
+        const consoleFile = process.env.AGENT_CONSOLE_PET_PYTHON && startupArgs.statusFile;
+        const activity = await (0, activity_1.readActivity)({...options, roleHome, roleShuttleFile, consoleFile});
         if (activity.source === "codex" || activity.source === "codex-opencode" || activity.source === "multi") {
             await Promise.all(activity.sessions.map(async session => {
                 session.canOpenFolder = (activity.source === "codex" || session.origin === "codex") && Boolean(await projectFolder(session));

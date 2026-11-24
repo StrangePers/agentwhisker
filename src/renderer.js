@@ -654,7 +654,7 @@ async function openConsoleTask(taskId) {
 }
 function renderActivity(activity, offline = false) {
   const active = activity.active;
-  consoleActiveTask = active?.origin === "roleshuttle" && /^[0-9a-f]{32}$/.test(active.sourceId) ? active.sourceId : activity.source === "json-status" && isConsoleTask(active) ? active.id : null;
+  consoleActiveTask = ["agent-console", "roleshuttle"].includes(active?.origin) && /^[0-9a-f]{32}$/.test(active.sourceId) ? active.sourceId : activity.source === "json-status" && isConsoleTask(active) ? active.id : null;
   const isEmpty = (["multi", "codex-opencode"].includes(activity.source) && (!active || active.state === "idle" || active.state === "review")) || activity.source === "json-status" && !consoleActiveTask && activity.state === "idle";
   const live = document.getElementById("liveStatus");
   const showDiagnostic = !managed && provider !== "desktop";
@@ -668,7 +668,7 @@ function renderActivity(activity, offline = false) {
   if (messageNode.textContent !== messageText) messageNode.textContent = messageText;
   document.getElementById("retrySource").hidden = !showDiagnostic || !needsRetry;
   const other = (activity.sessions || []).filter(item => item.id !== active?.id && item.state === "running").length;
-  const question = liveState === "waiting" && (activity.source === "json-status" || active?.origin === "roleshuttle") ? active?.detail : "";
+  const question = liveState === "waiting" && (activity.source === "json-status" || ["agent-console", "roleshuttle"].includes(active?.origin)) ? active?.detail : "";
   const linkDown = managed ? t("consoleDown") : t("sourceDown");
   const caption = offline ? linkDown : question ||
     (activity.state === "running" && livePhase === "checking" ? t("checksRunning") : stateNames[activity.state]) || t("unknown");
@@ -720,7 +720,7 @@ function renderTaskRows(sessions, source) {
     const origin = session.origin || source;
     const folder = origin === "codex" && session.canOpenFolder;
     return {
-    id: folder ? session.sourceId || session.id : origin === "roleshuttle" && /^[0-9a-f]{32}$/.test(session.sourceId) ? session.sourceId : source === "json-status" && isConsoleTask(session) ? session.id : "",
+    id: folder ? session.sourceId || session.id : ["agent-console", "roleshuttle"].includes(origin) && /^[0-9a-f]{32}$/.test(session.sourceId) ? session.sourceId : source === "json-status" && isConsoleTask(session) ? session.id : "",
     folder,
     state: session.state,
     title: displayTitle(session, origin),
@@ -821,6 +821,7 @@ function isBadgeSession(session) {
 }
 
 function labelForSource(source) {
+  if (source === "agent-console") return "Agent Console";
   if (source === "roleshuttle") return "RoleShuttle";
   if (source?.startsWith("agents:") || source === "codex-opencode") return selection.decode(source).map(labelForSource).join(" + ");
   if (source === "json-status") return t("statusFile");
@@ -961,6 +962,7 @@ async function loadProviders() {
 
 function renderProviderOptions() {
   for (const id of selection.ids) {
+    if (id === "agent-console" && !managedFile) continue;
     const label = document.createElement("label");
     const input = document.createElement("input");
     input.type = "checkbox";
@@ -971,7 +973,7 @@ function renderProviderOptions() {
 }
 
 function syncAgentChoices() {
-  const selected = managed ? ["roleshuttle"] : selection.decode(provider);
+  const selected = managed ? ["agent-console"] : selection.decode(provider);
   for (const input of agentChoices.querySelectorAll("input")) input.checked = selected.includes(input.value);
 }
 
@@ -1837,7 +1839,7 @@ agentChoices.addEventListener("change", () => {
   const wasManaged = managed;
   const previousProvider = provider;
   const selected = [...agentChoices.querySelectorAll("input:checked")].map(input => input.value);
-  managed = Boolean(managedFile && selected.length === 1 && selected[0] === "roleshuttle");
+  managed = Boolean(managedFile && selected.length === 1 && selected[0] === "agent-console");
   provider = managed ? "json-status" : selection.encode(selected);
   if (!managedFile && previousProvider !== provider) {
     if (limitsOpen) void setLimitsOpen(false);

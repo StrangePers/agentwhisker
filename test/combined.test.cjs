@@ -54,3 +54,21 @@ test("agent checkboxes round-trip empty, legacy, single and arbitrary selections
         assert.deepEqual(decode(normalizeSettings({provider:encode(expected)}).provider), expected);
     }
 });
+
+test("Hybrid profile worktrees share one parent across bridges and preserve unrelated worktrees", async () => {
+    const path = require("node:path");
+    const roleHome = path.resolve("test-hybrid-profile");
+    const task = "0123456789abcdef".repeat(2);
+    const stage = "rs-" + task;
+    const tasks = [snapshot("running", task).sessions[0], snapshot("running", stage).sessions[0]];
+    const worker = {...snapshot("running","child").sessions[0], directory:path.join(roleHome,"worktrees",task,"nested")};
+    const independent = {...worker, id:"independent", directory:path.join(roleHome,"other","worktrees",task)};
+    const read = createCombinedReader({
+        roleshuttle: () => ({sessions:tasks}),
+        "agent-console": () => snapshot("running",task),
+        codex: () => ({sessions:[worker, independent]}),
+        opencode: () => ({sessions:[worker]}),
+    });
+    assert.deepEqual((await read({roleHome})).sessions.map(s=>s.id).sort(),
+        ["codex:independent", "roleshuttle:" + task, "roleshuttle:" + stage]);
+});
