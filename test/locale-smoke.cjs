@@ -25,7 +25,7 @@ async function main() {
   ] });
   const awaitLocale = (page, code) => page.waitForFunction(expected => document.documentElement.lang === expected &&
     providerById.has("json-status") && currentState === "running" &&
-    !document.getElementById("languageSelect").disabled, code);
+    !preferenceNode("languageSelect").disabled, code);
   let app = await launch();
   try {
     const version = await app.evaluate(({app}) => app.getVersion());
@@ -52,31 +52,37 @@ async function main() {
       for (const type of ["input", "change"]) input.dispatchEvent(new Event(type, { bubbles: true }));
     });
     await page.waitForFunction(() => petSize === 360);
+    const preferences = async () => {
+      await page.evaluate(() => openPreferences("about"));
+      await page.waitForFunction(() => !document.querySelector("#preferencesStore").children.length);
+      return app.windows().find(window => window !== page && !window.isClosed());
+    };
     for (const code of ["es", "zh-CN", "hi", "en"]) {
       const { t, taskCount } = translator(code);
-      await page.evaluate(() => setSettingsOpen(true));
-      await page.locator("#languageSelect").selectOption(code);
+      let full = await preferences();
+      await full.locator("#languageSelect").selectOption(code);
       await awaitLocale(page, code);
-      assert.equal(await page.locator('label[for="languageSelect"]').textContent(), t("language"));
+      full = await preferences();
+      assert.equal(await full.locator('label[for="languageSelect"]').textContent(), t("language"));
       const versionLabel = page.locator("#appVersion");
-      assert(await versionLabel.isVisible());
+      assert((await full.locator("main").innerText()).includes("v"+version));
       assert.equal(await versionLabel.textContent(), `v${version}`);
       for (const key of ["launchAtLogin","notifyOnAttention"])
-        assert.equal(await page.locator('[data-t="' + key + '"]').textContent(), t(key));
+        assert.equal(await full.locator('[data-t="' + key + '"]').textContent(), t(key));
       assert.equal(await page.locator('label[for="idleAnimationMode"]').textContent(), t("idleAnimation"));
       assert.equal(await page.locator("#idleAnimationMode").inputValue(), "events-only");
       assert.equal(await page.locator("#petSizeInput").inputValue(), "360");
-      assert.equal(await page.locator("#statusFileInput").inputValue(), status);
+      assert.equal(await full.locator("#statusFileInput").inputValue(), status);
       assert.equal(await page.locator("#taskCount").textContent(), taskCount(1));
       assert.equal(await page.locator(".session-title").first().textContent(), task.title);
       assert.deepEqual(
-        await app.evaluate(() => globalThis.awTrayLabels), [t("showApp"), t("hideApp"), t("quitApp")]);
+        await app.evaluate(() => globalThis.awTrayLabels), [t("showApp"), t("allSettings"), t("quitApp")]);
       await page.evaluate(() => window.codexPets.importPet());
       const picker = await app.evaluate(() => globalThis.awPicker);
       assert.equal(picker.title, t("installCharacter"));
       assert.equal(picker.filters[0].name, t("packFilter"));
     }
-    await page.locator("#languageSelect").selectOption("zh-CN");
+    await (await preferences()).locator("#languageSelect").selectOption("zh-CN");
     await awaitLocale(page, "zh-CN");
     await app.close();
     app = await launch();

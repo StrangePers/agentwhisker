@@ -31,6 +31,10 @@ const { translator, apply: translateElements, languages } = window.AgentWhiskerL
 const { locale, t, taskCount: formatTaskCount } = translator(params.get("locale"));
 document.documentElement.lang = locale;
 translateElements(document, t);
+// Keep these references when the native preferences window hosts the controls.
+const preferenceNodes = new Map(Array.from(document.querySelectorAll("#preferencesStore [id]"), node => [node.id, node]));
+const preferenceNode = id => preferenceNodes.get(id) || document.getElementById(id);
+const previewButtons = document.querySelectorAll("[data-preview]");
 const appVersion = params.get("appVersion");
 if (appVersion) {
   const versionLabel = document.getElementById("appVersion");
@@ -99,10 +103,10 @@ let livePhase = "";
 let previewFrames = 0;
 let previewState = "";
 let lastGesture = "";
-const agentChoices = document.getElementById("agentChoices");
+const agentChoices = preferenceNode("agentChoices");
 const selection = window.agentSelection;
-const statusFileInput = document.getElementById("statusFileInput");
-const statusFileRow = document.getElementById("statusFileRow");
+const statusFileInput = preferenceNode("statusFileInput");
+const statusFileRow = preferenceNode("statusFileRow");
 const petSizeInput = document.getElementById("petSizeInput");
 const idleAnimationSelect = document.getElementById("idleAnimationMode");
 const idleAnimationStatus = document.getElementById("idleAnimationStatus");
@@ -177,7 +181,7 @@ function finishPreview(atCycleEnd = false) {
   const parkAtSeam = atCycleEnd && previewState === "idle" && state === "idle" &&
     idleAnimationMode === "events-only";
   previewState = "";
-  for (const button of document.querySelectorAll("[data-preview]")) button.setAttribute("aria-pressed", "false");
+  for (const button of previewButtons) button.setAttribute("aria-pressed", "false");
   if (parkAtSeam || (!atCycleEnd && state === currentState)) return false;
   startAnimation(state);
   return true;
@@ -187,7 +191,7 @@ function playOnce(state) {
   previewState = state;
   const kitsuCycles = {idle:72, running:72, waiting:32, failed:112};
   previewFrames = (selectedPetId === "kitsu" && kitsuCycles[state]) || animationForState(state).frames.length;
-  for (const button of document.querySelectorAll("[data-preview]")) button.setAttribute("aria-pressed", String(button.dataset.preview === state));
+  for (const button of previewButtons) button.setAttribute("aria-pressed", String(button.dataset.preview === state));
   startAnimation(state);
 }
 
@@ -217,6 +221,7 @@ function wakeIdle(immediate = false) {
 function applyIdleAnimationMode(value) {
   idleAnimationMode = value === "events-only" ? "events-only" : "continuous";
   idleAnimationSelect.value = idleAnimationMode;
+  window.AgentWhiskerPreferences?.sync();
   if (idleAnimationMode === "continuous") wakeIdle(true);
 }
 
@@ -616,7 +621,7 @@ function applyPet(pet) {
   petElement.setAttribute("aria-label", pet.displayName);
   petElement.title = t("petMenuHint", { name: pet.displayName });
   petElement.style.imageRendering = "auto";
-  for (const button of document.querySelectorAll(".skin-card")) {
+  for (const button of (preferenceNode("skinGallery").querySelectorAll?.(".skin-card") || [])) {
     button.setAttribute("aria-pressed", String(button.dataset.petId === pet.id));
   }
 }
@@ -626,7 +631,7 @@ function selectPet(petId, options) {
 }
 
 function renderSkinGallery() {
-  const gallery = document.getElementById("skinGallery");
+  const gallery = preferenceNode("skinGallery");
   gallery.replaceChildren();
   for (const pet of pets) {
     const button = document.createElement("button");
@@ -697,6 +702,7 @@ let renderedTaskRows = "";
 function updateBusyBubble() {
   threadBadge.classList.toggle("pinned", showBusyBubble && busyTasks);
   document.getElementById("busyBubbleToggle").checked = showBusyBubble;
+  window.AgentWhiskerPreferences?.sync();
 }
 let openingConsole = false;
 async function openConsoleTask(taskId) {
@@ -712,25 +718,25 @@ function renderActivity(activity, offline = false) {
   const active = activity.active;
   consoleActiveTask = ["agent-console", "roleshuttle"].includes(active?.origin) && /^[0-9a-f]{32}$/.test(active.sourceId) ? active.sourceId : activity.source === "json-status" && isConsoleTask(active) ? active.id : null;
   const isEmpty = (["multi", "codex-opencode"].includes(activity.source) && (!active || active.state === "idle" || active.state === "review")) || activity.source === "json-status" && !consoleActiveTask && activity.state === "idle";
-  const live = document.getElementById("liveStatus");
+  const live = preferenceNode("liveStatus");
   const showDiagnostic = !managed && provider !== "desktop";
   const needsRetry = offline || activity.invalidState || activity.state === "stale" || activity.state === "unknown";
   const diagnostic = offline ? (provider === "json-status" ? "checkJson" :
       activity.missingSource ? "startSession" : "unreadableSource") :
     activity.state === "stale" || activity.state === "unknown" ? activity.state :
     !activity.sessions?.length ? "startSession" : activity.state === "idle" ? "connectedIdle" : "";
-  const messageNode = document.getElementById("sourceDiagnostic");
+  const messageNode = preferenceNode("sourceDiagnostic");
   const messageText = showDiagnostic && diagnostic ? t(diagnostic) : "";
   if (messageNode.textContent !== messageText) messageNode.textContent = messageText;
-  document.getElementById("retrySource").hidden = !showDiagnostic || !needsRetry;
+  preferenceNode("retrySource").hidden = !showDiagnostic || !needsRetry;
   const other = (activity.sessions || []).filter(item => item.id !== active?.id && item.state === "running").length;
   const question = liveState === "waiting" && (activity.source === "json-status" || ["agent-console", "roleshuttle"].includes(active?.origin)) ? active?.detail : "";
   const linkDown = managed ? t("consoleDown") : t("sourceDown");
   const caption = offline ? linkDown : question ||
     (activity.state === "running" && livePhase === "checking" ? t("checksRunning") : stateNames[activity.state]) || t("unknown");
-  live.textContent = (activity.unavailable?.length ? activity.unavailable.map(labelForSource).join(" + ") + " · " + t("sourceDown") + " / " : "") + caption + (question && other ? ` · ${t("otherTasks", { count: new Intl.NumberFormat(locale).format(other) })}` : "");
+  live.textContent = (activity.unavailable?.length ? [...new Set(activity.unavailable.map(labelForSource))].join(" + ") + " · " + t("sourceDown") + " / " : "") + caption + (question && other ? ` · ${t("otherTasks", { count: new Intl.NumberFormat(locale).format(other) })}` : "");
   live.dataset.offline = String(offline);
-  document.getElementById("openStatusTask").hidden = offline || !consoleActiveTask || !["waiting","failed"].includes(liveState);
+  preferenceNode("openStatusTask").hidden = offline || !consoleActiveTask || !["waiting","failed"].includes(liveState);
   const currentTask = document.getElementById("currentTask");
   currentTask.textContent = isEmpty ? t("noTasks") : active?.title || "AgentWhisker";
   currentTask.title = isEmpty ? "" : [active?.title, active?.detail].filter(Boolean).join(" — ");
@@ -947,9 +953,9 @@ function isBadgeSession(session) {
 }
 
 function labelForSource(source) {
-  if (source === "agent-console") return "Agent Console";
+  if (source === "agent-console") return "RoleShuttle";
   if (source === "roleshuttle") return "RoleShuttle";
-  if (source?.startsWith("agents:") || source === "codex-opencode") return selection.decode(source).map(labelForSource).join(" + ");
+  if (source?.startsWith("agents:") || source === "codex-opencode") return [...new Set(selection.decode(source).map(labelForSource))].join(" + ");
   if (source === "json-status") return t("statusFile");
   if (source === "desktop") return t("desktop");
   return providerById.get(source)?.label || t("agent");
@@ -973,9 +979,9 @@ async function boot() {
   showBusyBubble = settings.showBusyBubble !== false;
   const loginEnabled = await window.codexPets.getLoginSetting().catch(() => null);
   if (typeof loginEnabled === "boolean") {
-    document.getElementById("windowsSettings").hidden = false;
-    document.getElementById("loginToggle").checked = loginEnabled;
-    document.getElementById("attentionToggle").checked = settings.notifyOnAttention === true;
+    preferenceNode("windowsSettings").hidden = false;
+    preferenceNode("loginToggle").checked = loginEnabled;
+    preferenceNode("attentionToggle").checked = settings.notifyOnAttention === true;
   }
   updateBusyBubble();
   showTaskLabel = settings.showTaskLabel !== false;
@@ -1015,18 +1021,19 @@ async function boot() {
   updateLimitsAvailability();
   await initializeLimits({...settings, limitsPanelOpen:!limitsButton.hidden && settings.limitsPanelOpen});
   await refreshActivity();
-  if (params.get("showSettings") === "1") setSettingsOpen(true);
+  if (params.get("preferences")) openPreferences(params.get("preferences"));
+  else if (params.get("showSettings") === "1") setSettingsOpen(true);
   if (params.get("firstConnection") === "1") void offerFirstConnection();
 }
 
 async function offerFirstConnection() {
-  const panel = document.getElementById("firstConnection");
+  const panel = preferenceNode("firstConnection");
   panel.hidden = false;
-  setSettingsOpen(true);
+  openPreferences("agents");
   const agents = await window.codexPets.discoverSources(codexHome).catch(() => []);
   if (panel.hidden) return;
-  document.getElementById("discoveryMessage").textContent = t(agents.length ? "pickAgent" : "noAgent");
-  const list = document.getElementById("detectedAgents");
+  preferenceNode("discoveryMessage").textContent = t(agents.length ? "pickAgent" : "noAgent");
+  const list = preferenceNode("detectedAgents");
   for (const agent of agents) {
     const button = document.createElement("button");
     button.type = "button";
@@ -1034,7 +1041,7 @@ async function offerFirstConnection() {
     button.onclick = () => {
       const input = agentChoices.querySelector(`input[value="${agent}"]`);
       if (input && !input.checked) input.click();
-      document.getElementById("connectionOptions").open = true;
+      preferenceNode("connectionOptions").open = true;
       agentChoices.querySelector("input")?.focus();
     };
     list.append(button);
@@ -1042,8 +1049,8 @@ async function offerFirstConnection() {
 }
 
 function initializeLanguage(preference) {
-  const select = document.getElementById("languageSelect");
-  const message = document.getElementById("languageStatus");
+  const select = preferenceNode("languageSelect");
+  const message = preferenceNode("languageStatus");
   select.add(new Option(t("system"), ""));
   for (const [code, name] of Object.entries(languages)) select.add(new Option(name, code));
   select.value = preference || "";
@@ -1059,9 +1066,11 @@ function initializeLanguage(preference) {
         const state = {
           locale: saved.effectiveLocale,
           provider, statusFile, petSize, state: requestedState,
-          pet: selectedPetId, managed: managed ? "1" : "", showSettings: "1",
+          pet: selectedPetId, managed: managed ? "1" : "", preferences: "about",
         };
         for (const [key, value] of Object.entries(state)) url.searchParams.set(key, value);
+        url.searchParams.delete("firstConnection");
+        window.AgentWhiskerPreferences.close();
         location.replace(url.href);
       }
     } catch {
@@ -1088,7 +1097,7 @@ async function loadProviders() {
 
 function renderProviderOptions() {
   for (const id of selection.ids) {
-    if (id === "agent-console" && !managedFile) continue;
+    if (id === "agent-console") continue;
     const label = document.createElement("label");
     const input = document.createElement("input");
     input.type = "checkbox";
@@ -1099,7 +1108,7 @@ function renderProviderOptions() {
 }
 
 function syncAgentChoices() {
-  const selected = managed ? ["agent-console"] : selection.decode(provider);
+  const selected = managed ? ["roleshuttle"] : selection.decode(provider).map(id => id === "agent-console" ? "roleshuttle" : id);
   for (const input of agentChoices.querySelectorAll("input")) input.checked = selected.includes(input.value);
 }
 
@@ -1250,6 +1259,12 @@ function setPopoverOpen(value, moveFocus = false) {
   syncMousePassthrough();
 }
 
+function openPreferences(section = "appearance") {
+  setSettingsOpen(false);
+  window.AgentWhiskerPreferences.open(section, t, locale, appVersion);
+}
+document.getElementById("allSettings").onclick = () => openPreferences();
+
 function setSettingsOpen(value) {
   settingsOpen = value;
   settingsButton.setAttribute("aria-expanded", String(value));
@@ -1273,6 +1288,7 @@ function applyPetSize(value) {
   document.getElementById("app").style.setProperty("--pet-size", `${petSize}px`);
   petSizeInput.value = String(petSize);
   document.getElementById("petSizeValue").value = `${petSize} px`;
+  window.AgentWhiskerPreferences?.sync();
   fitPetShape();
   positionLimits();
   syncMousePassthrough();
@@ -1453,7 +1469,7 @@ function clamp(value, min, max) {
 }
 
 function updateProviderControls() {
-  document.getElementById("connectionName").textContent = managed ? "Agent Console" : provider === "json-status" ? t("statusFile") : labelForSource(provider);
+  preferenceNode("connectionName").textContent = managed ? "RoleShuttle" : provider === "json-status" ? t("statusFile") : labelForSource(provider);
 
   statusFileRow.hidden = managed || !selection.decode(provider).includes("json-status");
 }
@@ -1461,7 +1477,7 @@ function updateProviderControls() {
 const limitsButton = document.getElementById("limitsButton");
 const limitsPopover = document.getElementById("limitsPopover");
 const limitsRefreshButton = document.getElementById("limitsRefreshButton");
-const limitsPreference = document.getElementById("limitsPreference");
+const limitsPreference = preferenceNode("limitsPreference");
 const limitsShowAll = document.getElementById("limitsShowAll");
 const limitsCredits = document.getElementById("limitsCredits");
 let showAllLimits = false;
@@ -1713,7 +1729,7 @@ function hasLimitValue(window) {
 
 function updateLimitsAvailability() {
   const available = Boolean(managedFile || nativeLimitsProviders.has(provider));
-  document.getElementById("limitsPreferenceRow").hidden = !available;
+  preferenceNode("limitsPreferenceRow").hidden = !available;
   limitsButton.hidden = !available || limitsPreference.value === "hidden";
   if (limitsButton.hidden && limitsOpen) void setLimitsOpen(false);
   positionLimits();
@@ -1926,9 +1942,9 @@ limitsPreference.addEventListener("change", async () => {
   }
 });
 
-document.getElementById("importPet").onclick = async event => {
+preferenceNode("importPet").onclick = async event => {
   const button = event.currentTarget;
-  const message = document.getElementById("importResult");
+  const message = preferenceNode("importResult");
   button.disabled = true;
   message.textContent = "";
   try {
@@ -1945,28 +1961,32 @@ document.getElementById("importPet").onclick = async event => {
   }
 };
 document.getElementById("closeSettings").onclick = () => { setSettingsOpen(false); petElement.focus(); };
-document.getElementById("openStatusTask").onclick = () => { if (consoleActiveTask) openConsoleTask(consoleActiveTask); };
-for (const button of document.querySelectorAll("[data-preview]")) button.onclick = () => playOnce(button.dataset.preview);
-for (const id of ["motionOptions","connectionOptions"]) document.getElementById(id).ontoggle = () => {
+preferenceNode("openStatusTask").onclick = () => { if (consoleActiveTask) openConsoleTask(consoleActiveTask); };
+for (const button of previewButtons) button.onclick = () => playOnce(button.dataset.preview);
+for (const id of ["motionOptions","connectionOptions"]) preferenceNode(id).ontoggle = () => {
   if (settingsOpen) positionLimits();
 };
-document.getElementById("manualConnect").onclick = () => {
-  document.getElementById("firstConnection").hidden = true;
-  document.getElementById("connectionOptions").open = true;
+preferenceNode("manualConnect").onclick = () => {
+  preferenceNode("firstConnection").hidden = true;
+  preferenceNode("connectionOptions").open = true;
   agentChoices.querySelector("input")?.focus();
 };
-document.getElementById("keepDesktop").onclick = () => {
-  document.getElementById("firstConnection").hidden = true;
+preferenceNode("keepDesktop").onclick = () => {
+  preferenceNode("firstConnection").hidden = true;
+  window.AgentWhiskerPreferences.close();
   setSettingsOpen(false);
   petElement.focus();
 };
-document.getElementById("retrySource").onclick = () => refreshActivity().catch(console.error);
+preferenceNode("retrySource").onclick = () => refreshActivity().catch(console.error);
 agentChoices.addEventListener("change", () => {
-  document.getElementById("firstConnection").hidden = true;
+  preferenceNode("firstConnection").hidden = true;
   const wasManaged = managed;
   const previousProvider = provider;
   const selected = [...agentChoices.querySelectorAll("input:checked")].map(input => input.value);
-  managed = Boolean(managedFile && selected.length === 1 && selected[0] === "agent-console");
+  // Preserve the managed bridge when it is the only source. Combined views
+  // can merge native RoleShuttle sessions with matching legacy bridge IDs.
+  managed = Boolean(wasManaged && selected.length === 1 && selected[0] === "roleshuttle");
+  if (!managed && managedFile && selected.includes("roleshuttle")) selected.push("agent-console");
   provider = managed ? "json-status" : selection.encode(selected);
   if (!managedFile && previousProvider !== provider) {
     if (limitsOpen) void setLimitsOpen(false);
@@ -2001,11 +2021,12 @@ idleAnimationSelect.addEventListener("change", async () => {
     if (revision === idleAnimationRevision) {
       applyIdleAnimationMode(savedIdleAnimationMode);
       idleAnimationStatus.textContent = t("saveIdleError");
+      window.AgentWhiskerPreferences?.sync();
       if (settingsOpen) positionLimits();
     }
   }
 });
-document.getElementById("chooseStatusFile").onclick = async () => {
+preferenceNode("chooseStatusFile").onclick = async () => {
   const file = await window.codexPets.chooseStatusFile();
   if (file && !managed && selection.decode(provider).includes("json-status")) {
     statusFileInput.value = file;
@@ -2021,13 +2042,14 @@ function applyTaskLabel(visible) {
   showTaskLabel = visible;
   const currentTask = document.getElementById("currentTask");
   currentTask.hidden = !visible || currentTask.dataset.empty === "true";
-  document.getElementById("taskLabelToggle").checked = visible;
+  preferenceNode("taskLabelToggle").checked = visible;
   syncMousePassthrough();
 }
 window.codexPets.onConsoleCommand(command => {
   if (command.action === "label") applyTaskLabel(command.value === true);
   if (command.action === "panel") setPopoverOpen(command.value === true);
   if (command.action === "limits") void setLimitsOpen(command.value === true);
+  if (command.action === "preferences") openPreferences();
   if (command.action === "settings") setSettingsOpen(true);
   if (command.action === "skin") selectPet(command.value);
   if (command.action === "error") {
@@ -2039,9 +2061,9 @@ for (const [id, save] of [
   ["loginToggle", value => window.codexPets.setLoginSetting(value)],
   ["attentionToggle", async value => (await window.codexPets.updateSettings({notifyOnAttention:value})).notifyOnAttention],
 ]) {
-  document.getElementById(id).addEventListener("change", async ({target}) => {
+  preferenceNode(id).addEventListener("change", async ({target}) => {
     const requested = target.checked;
-    const error = document.getElementById("dailySaveError");
+    const error = preferenceNode("dailySaveError");
     target.disabled = true;
     error.hidden = true;
     try {
@@ -2064,7 +2086,7 @@ document.getElementById("busyBubbleToggle").addEventListener("change", async eve
   updateBusyBubble();
   syncMousePassthrough();
 });
-document.getElementById("taskLabelToggle").addEventListener("change", async event => {
+preferenceNode("taskLabelToggle").addEventListener("change", async event => {
   const value = event.target.checked;
   try {
     const saved = await window.codexPets.updateSettings({showTaskLabel:value});
@@ -2096,7 +2118,7 @@ petElement.addEventListener("keydown", event => {
     event.preventDefault();
     if (!event.repeat) wakeIdle();
     setSettingsOpen(true);
-    document.querySelector('.skin-card[aria-pressed="true"]')?.focus();
+    petSizeInput.focus();
   }
 });
 settingsButton.addEventListener("click", () => setSettingsOpen(!settingsOpen));

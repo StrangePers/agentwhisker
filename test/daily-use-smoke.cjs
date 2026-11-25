@@ -25,7 +25,8 @@ async function main() {
     try {
         const page = await login.firstWindow();
         await page.waitForFunction(() => typeof shape !== "undefined" && shape && !document.getElementById("windowsSettings").hidden);
-        await page.evaluate(() => setSettingsOpen(true));
+        await page.evaluate(() => openPreferences("notifications"));
+        const full = login.windows().find(other => other !== page);
         const name = "AgentWhisker-Test-" + path.basename(tmp);
         await login.evaluate(({app, Tray}, name) => {
             const set = app.setLoginItemSettings.bind(app);
@@ -44,24 +45,24 @@ async function main() {
                 return show.call(this, options);
             };
         }, name);
-        const loginToggle = page.locator("#loginToggle");
+        const loginToggle = full.locator("#loginToggle");
         const regKey = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
         try {
             assert.equal(await loginToggle.isChecked(), false);
             await loginToggle.click();
-            await page.waitForFunction(() => !document.getElementById("loginToggle").disabled);
+            await full.waitForFunction(() => !document.getElementById("loginToggle").disabled);
             const registration = execFileSync("reg.exe", ["query",regKey,"/v",name], {encoding:"utf8", windowsHide:true});
             const registrationState = await login.evaluate(({app}) => app.getLoginItemSettings({path:process.execPath,args:["--login-start"]}));
             assert(registration.toLowerCase().includes(exe.toLowerCase()) && registration.includes("--login-start"));
             assert.equal(await loginToggle.isChecked(), true, JSON.stringify(registrationState));
             await loginToggle.uncheck();
-            await page.waitForFunction(() => !document.getElementById("loginToggle").disabled);
+            await full.waitForFunction(() => !document.getElementById("loginToggle").disabled);
             assert.throws(() => execFileSync("reg.exe", ["query",regKey,"/v",name], {stdio:"ignore",windowsHide:true}));
         } finally { await page.evaluate(() => window.codexPets.setLoginSetting(false)); }
-        const toggle = page.locator("#attentionToggle");
+        const toggle = full.locator("#attentionToggle");
         assert.equal(await toggle.isChecked(), false);
         await toggle.check();
-        await page.waitForFunction(() => !document.getElementById("attentionToggle").disabled);
+        await full.waitForFunction(() => !document.getElementById("attentionToggle").disabled);
         const poll = () => page.evaluate(() => window.codexPets.readActivity({provider,codexHome,statusFile}));
         await poll();
         await snapshot("running"); await poll();
@@ -72,7 +73,7 @@ async function main() {
         assert(balloons.every(b => b.noSound && b.respectQuietTime && b.content.includes("AgentWhisker test")));
         assert.equal(JSON.parse(await fs.readFile(path.join(profile, "settings.json"))).notifyOnAttention, true);
         await toggle.uncheck();
-        await page.waitForFunction(() => !document.getElementById("attentionToggle").disabled);
+        await full.waitForFunction(() => !document.getElementById("attentionToggle").disabled);
         await snapshot("running"); await poll();
         await snapshot("failed"); await poll();
         assert.equal(await login.evaluate(() => globalThis.smokeBalloons.length), 2);

@@ -56,23 +56,12 @@
 
       <section id="settingsPopover" class="settings-popover" data-t-label="petSettings" aria-hidden="true">
         <header class="pet-heading">
-          <h2 data-t="pet"></h2>
+          <h2 data-t="quickSettings"></h2>
           <span id="appVersion" class="app-version" hidden></span>
           <button id="closeSettings" data-t-label="closeSettings">×</button>
         </header>
         <div class="settings-content">
-        <section id="firstConnection" hidden>
-          <strong data-t="connectAgent"></strong>
-          <p id="discoveryMessage" role="status" data-t="findingAgents"></p>
-          <div id="detectedAgents"></div>
-          <button type="button" id="manualConnect" data-t="chooseSource"></button>
-          <button type="button" id="keepDesktop" data-t="keepDesktop"></button>
-        </section>
-        <div class="skin-heading" data-t="character"></div>
-        <div id="skinGallery" class="skin-gallery" role="group" data-t-label="chooseCharacter"></div>
-        <button id="importPet" type="button" data-t="installCharacterAction"></button>
-        <div id="importResult" role="status"></div>
-        <label class="setting-pair" for="petSizeInput"><span data-t="size"></span> <output id="petSizeValue" for="petSizeInput"></output></label>
+<div id="quickControls">        <label class="setting-pair" for="petSizeInput"><span data-t="size"></span> <output id="petSizeValue" for="petSizeInput"></output></label>
         <input id="petSizeInput" type="range" min="72" max="360" step="4">
         <div class="idle-animation-setting">
           <label for="idleAnimationMode" data-t="idleAnimation"></label>
@@ -82,18 +71,16 @@
           </select>
           <div id="idleAnimationStatus" role="status"></div>
         </div>
-        <div class="language-setting">
-          <label for="languageSelect" data-t="language"></label>
-          <select id="languageSelect" disabled></select>
-          <div id="languageStatus" role="status"></div>
-        </div>
-        <label class="setting-pair" for="taskLabelToggle"><span data-t="taskLabel"></span> <input id="taskLabelToggle" type="checkbox" role="switch" checked></label>
         <label class="setting-pair bubble-setting" for="busyBubbleToggle"><span data-t="taskBubble"></span> <input id="busyBubbleToggle" type="checkbox" role="switch" checked></label>
-        <div id="windowsSettings" hidden>
-          <label class="setting-pair"><span data-t="launchAtLogin"></span> <input id="loginToggle" type="checkbox" role="switch"></label>
-          <label class="setting-pair"><span data-t="notifyOnAttention"></span> <input id="attentionToggle" type="checkbox" role="switch"></label>
-          <div id="dailySaveError" role="status" hidden data-t="dailySaveError"></div>
+</div><button type="button" id="allSettings" data-t="allSettings"></button>
         </div>
+      </section>
+    </main>
+    <div id="preferencesStore" hidden><section data-section="appearance">        <div class="skin-heading" data-t="character"></div>
+        <div id="skinGallery" class="skin-gallery" role="group" data-t-label="chooseCharacter"></div>
+        <button id="importPet" type="button" data-t="installCharacterAction"></button>
+        <div id="importResult" role="status"></div>
+        <label class="setting-pair" for="taskLabelToggle"><span data-t="taskLabel"></span> <input id="taskLabelToggle" type="checkbox" role="switch" checked></label>
         <div class="language-setting" id="limitsPreferenceRow" hidden>
           <label for="limitsPreference" data-t="limitsButtonSetting"></label>
           <select id="limitsPreference">
@@ -101,27 +88,44 @@
             <option value="hidden" data-t="hideLimitsButton"></option>
           </select>
         </div>
-        <div class="connection">
-          <details id="connectionOptions"><summary><strong id="connectionName" data-t="source"></strong><span data-t="automatic"></span></summary>
-            <div id="sourceOptions"><fieldset id="agentChoices"><legend data-t="trackAgents"></legend></fieldset>
-            <div id="statusFileRow"><label><span data-t="statusFile"></span> <input id="statusFileInput" type="text"></label><button type="button" id="chooseStatusFile" data-t="chooseFile"></button></div></div>
-          </details>
-          <div id="liveStatus" role="status"></div>
-          <div id="sourceDiagnostic" role="status"></div>
-          <button type="button" id="retrySource" hidden data-t="retrySource"></button>
-          <button id="openStatusTask" hidden data-t="openTask"></button>
-        </div>
         <details id="motionOptions"><summary data-t="previewAnimations"></summary>
           <div class="motion-grid"><button data-preview="idle" data-t="idle"></button><button data-preview="running" data-t="running"></button>
           <button data-preview="waiting" data-t="waiting"></button><button data-preview="failed" data-t="failed"></button></div>
         </details>
+</section><section data-section="agents">        <section id="firstConnection" hidden>
+          <strong data-t="connectAgent"></strong>
+          <p id="discoveryMessage" role="status" data-t="findingAgents"></p>
+          <div id="detectedAgents"></div>
+          <button type="button" id="manualConnect" data-t="chooseSource"></button>
+          <button type="button" id="keepDesktop" data-t="keepDesktop"></button>
+        </section>
+        <div class="connection">
+          <details id="connectionOptions" open><summary><strong id="connectionName" data-t="source"></strong></summary>
+            <div id="sourceOptions"><fieldset id="agentChoices"><legend data-t="trackAgents"></legend></fieldset>
+            <div id="statusFileRow"><label><span data-t="statusFile"></span> <input id="statusFileInput" type="text"></label><button type="button" id="chooseStatusFile" data-t="chooseFile"></button></div></div>
+          </details>
+          <div id="liveStatus" role="status"></div>
+          <details id="connectionDiagnostic"><summary data-t="diagnostics"></summary>
+            <div id="sourceDiagnostic" role="status"></div>
+          <button type="button" id="retrySource" hidden data-t="retrySource"></button>
+          <button id="openStatusTask" hidden data-t="openTask"></button>
         </div>
-      </section>
-    </main>
+</section><section data-section="notifications">        <div id="windowsSettings" hidden>
+          <label class="setting-pair"><span data-t="launchAtLogin"></span> <input id="loginToggle" type="checkbox" role="switch"></label>
+          <label class="setting-pair"><span data-t="notifyOnAttention"></span> <input id="attentionToggle" type="checkbox" role="switch"></label>
+          <div id="dailySaveError" role="status" hidden data-t="dailySaveError"></div>
+        </div>
+</section><section data-section="about">        <div class="language-setting">
+          <label for="languageSelect" data-t="language"></label>
+          <select id="languageSelect" disabled></select>
+          <div id="languageStatus" role="status"></div>
+        </div>
+</section></div>
     <script src="./locale.js"></script>
     <script src="./skins.js"></script>
     <script src="./sprite-geometry.js"></script>
     <script src="./agent-selection.js"></script>
+    <script src="./preferences.js"></script>
     <script src="./renderer.js"></script>
   </body>
 </html>

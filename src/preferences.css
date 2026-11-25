@@ -1,0 +1,28 @@
+html:has(.preferences-window) { color-scheme: dark; background: #26211f; }
+body.preferences-window {
+  pointer-events: auto; display: grid; grid-template-columns: 170px 1fr;
+  height: 100vh; width: 100%; margin: 0; overflow: hidden; background: #26211f;
+  color: #fff3e9; font: 15px/1.45 "Segoe UI", sans-serif; accent-color: #efbd8e;
+}
+.preferences-window [hidden] {display:none !important}
+.preferences-window nav {padding:22px 12px; background:#302823; border-right:1px solid #514138; overflow:auto}
+.preferences-window nav strong {display:block; margin:4px 8px 22px}
+.preferences-window button, .preferences-window select, .preferences-window input {font:inherit;color:inherit}
+.preferences-window button, .preferences-window select {padding:6px 10px;background:#39312d;border:1px solid #615146;border-radius:7px}
+.preferences-window button,.preferences-window summary {cursor:pointer}
+.preferences-window nav button {width:100%;text-align:start;background:none;border:0;margin:2px 0}
+.preferences-window nav button[aria-current=true], .preferences-window .skin-card[aria-pressed=true] {background:#514034;color:#ffd3aa}
+.preferences-window main {display:grid;grid-template-rows:auto minmax(0,1fr); min-height:0;min-width:0}
+.preferences-window h1 {margin:0;padding:20px 24px 14px;border-bottom:1px solid #514138;font-size:23px}
+.preferences-window main>div {padding:14px 24px 24px;overflow:auto;scrollbar-gutter:stable}
+.preferences-window :focus-visible {outline:2px solid #efbd8e;outline-offset:2px}
+.preferences-window .setting-pair {padding:8px 0}
+.preferences-window .connection {margin:0;border:0}
+.preferences-window details {margin:10px 0}
+.preferences-window #motionOptions summary {text-align:start}
+.preferences-window .skin-gallery {max-height:none}
+.preferences-window .skin-card {position:relative}
+
+.preferences-window #agentChoices {border:0;padding:0;margin:12px 0}
+.preferences-window #agentChoices legend {font-size:13px;color:#c6b5a8;margin-bottom:4px}
+.preferences-window #agentChoices label {display:flex;flex-direction:row-reverse;align-items:center;justify-content:space-between;border-bottom:1px solid #493d35;padding:8px 0;margin:0;cursor:pointer}

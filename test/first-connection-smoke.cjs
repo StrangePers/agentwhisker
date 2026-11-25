@@ -22,27 +22,29 @@ async function run(count, size) {
     let app = await launch();
     try {
         const page = await app.firstWindow();
-        await page.waitForFunction(() => !document.querySelector("#firstConnection").hidden &&
-            document.querySelector("#discoveryMessage").textContent !== t("findingAgents"));
-        assert.equal(await page.locator("#detectedAgents button").count(), count);
+        await page.waitForFunction(() => !preferenceNode("firstConnection").hidden &&
+            preferenceNode("discoveryMessage").textContent !== t("findingAgents"));
+        const full = app.windows().find(window => window !== page);
+        assert.equal(await full.locator("#detectedAgents button").count(), count);
         if (!count) {
-            await page.click("#keepDesktop");
+            await full.click("#keepDesktop");
             await page.waitForFunction(() => !settingsOpen);
         } else {
-            await page.locator("#detectedAgents button").first().click();
+            await full.locator("#detectedAgents button").first().click();
             await page.waitForFunction(() => provider === "claude-code" &&
-                document.querySelector("#sourceDiagnostic").textContent === t("startSession"));
+                preferenceNode("sourceDiagnostic").textContent === t("startSession"));
             const project = path.join(root,"projects","sample");
             await fs.mkdir(project,{recursive:true});
             await fs.writeFile(path.join(project,"session.jsonl"), JSON.stringify({type:"user",
                 sessionId:"sample", timestamp:new Date().toISOString(), message:{content:"Sample"}}));
-            await page.click("#retrySource");
+            await full.locator("#connectionDiagnostic").evaluate(details => {details.open = true;});
+            await full.click("#retrySource");
             await page.waitForFunction(() => currentState === "running");
             await fs.rename(path.join(root,"projects"),path.join(root,"saved-projects"));
             await page.evaluate(() => refreshActivity());
-            await page.waitForFunction(() => document.querySelector("#retrySource").hidden === false);
+            await page.waitForFunction(() => preferenceNode("retrySource").hidden === false);
             await fs.rename(path.join(root,"saved-projects"),path.join(root,"projects"));
-            await page.click("#retrySource");
+            await full.click("#retrySource");
             await page.waitForFunction(() => currentState === "running");
         }
         await app.close();
@@ -54,15 +56,16 @@ async function run(count, size) {
         if (!count) {
             const status = path.join(root,"status.json");
             await fs.writeFile(status, JSON.stringify({state:"waiting",title:"Example"}));
-            await page2.evaluate(() => setSettingsOpen(true));
-            await page2.click("#connectionOptions summary");
-            await page2.check('#agentChoices input[value="json-status"]');
+            await page2.evaluate(() => openPreferences("agents"));
+            const full2 = app.windows().find(window => window !== page2);
+            await full2.locator("#connectionOptions").evaluate(details => {details.open = true;});
+            await full2.check('#agentChoices input[value="json-status"]');
             await app.evaluate(({dialog}, file) => {
                 dialog.showOpenDialog = async () => ({canceled:false,filePaths:[file]});
             },status);
-            await page2.click("#chooseStatusFile");
+            await full2.click("#chooseStatusFile");
             await page2.waitForFunction(() => currentState === "waiting");
-            assert.equal(await page2.locator("#statusFileInput").inputValue(),status);
+            assert.equal(await full2.locator("#statusFileInput").inputValue(),status);
         }
         console.log(count, "detected agents at", size, "and persisted choice");
     } finally {await app.close();}

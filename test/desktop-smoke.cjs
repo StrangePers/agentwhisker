@@ -11,7 +11,7 @@ const { _electron } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
    const app=await _electron.launch({executablePath:exe,env,args:["--user-data-dir="+profile]});
    try {
      const page=await app.firstWindow();page.setDefaultTimeout(10000);
-     await page.waitForFunction(()=>typeof shape !== "undefined" && shape && selectedPetId && document.querySelector("#liveStatus").textContent);
+     await page.waitForFunction(()=>typeof shape !== "undefined" && shape && selectedPetId && preferenceNode("liveStatus").textContent);
      return {app,page};
    } catch(e){await app.close();throw e}
  }
@@ -20,9 +20,10 @@ const { _electron } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
    assert.deepEqual(await page.evaluate(()=>pets.map(p=>p.id)),["kitsu"]);
    assert.equal(await page.evaluate(()=>provider),"desktop");
    assert.equal(await page.locator("#limitsButton").isVisible(),false);
-   await page.evaluate(()=>setSettingsOpen(true)); await page.click("#motionOptions summary");
+   await page.evaluate(()=>openPreferences("appearance"));
+   const full=app.windows().find(other=>other!==page); await full.click("#motionOptions summary");
    for(const state of ["running","waiting","failed","idle"]){
-     await page.click('[data-preview="'+state+'"]');
+     await full.click('[data-preview="'+state+'"]');
      await page.waitForFunction(s=>currentState===s,state);
      await page.waitForFunction(()=>!previewState && currentState==="idle",null,{timeout:20000});
    }
@@ -31,10 +32,10 @@ const { _electron } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
      for(const id of ["nyx","rune","mori","nova"]){
        // Replace only the native file picker. Exercise the real import button, IPC and disk writes.
        await app.evaluate(({dialog},f)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[f]})},path.resolve(packDir,id+".whiskerpack"));
-       await page.click("#importPet");await page.waitForFunction(id=>selectedPetId===id,id);
-       await page.waitForFunction(()=>!document.querySelector("#importPet").disabled);
+       await full.click("#importPet");await page.waitForFunction(id=>selectedPetId===id,id);
+       await page.waitForFunction(()=>!preferenceNode("importPet").disabled);
      }
-     assert.equal(await page.locator(".skin-card").count(),5);
+     assert.equal(await full.locator(".skin-card").count(),5);
      await app.close();({app,page}=await launch());assert.equal(await page.evaluate(()=>selectedPetId),"nova");
      assert.equal(await page.locator(".skin-card").count(),5);
      console.log("Four external packs installed and switched live; library and selected character survived restart");

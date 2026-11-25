@@ -170,6 +170,14 @@ async function createWindow(args) {
             nodeIntegration: false,
         },
     });
+    win.webContents.setWindowOpenHandler(({url, frameName}) => {
+        if (url !== "about:blank" || frameName !== "agentwhisker-preferences") return {action:"deny"};
+        return {action:"allow", overrideBrowserWindowOptions:{
+            width:760, height:535, minWidth:540, minHeight:400, frame:true, transparent:false,
+            alwaysOnTop:false, skipTaskbar:false, resizable:true, autoHideMenuBar:true, hasShadow:true,
+            backgroundColor:"#26211f", icon:path.join(__dirname,"assets","agentwhisker.ico"),
+        }};
+    });
     win.setAlwaysOnTop(true, "floating");
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     let limitsBridge = null;
@@ -257,7 +265,7 @@ function updateTrayMenu(win) {
     if (!appTray || !win || win.isDestroyed()) return;
     appTray.setContextMenu(electron_1.Menu.buildFromTemplate([
         { label: t("showApp"), click: () => win.show() },
-        { label: t("hideApp"), click: () => win.hide() },
+        { label: t("allSettings"), click: () => win.webContents.send("console:command", {action:"preferences"}) },
         { type: "separator" },
         { label: t("quitApp"), click: () => electron_1.app.quit() },
     ]));
@@ -312,14 +320,11 @@ function registerIpcHandlers(startupArgs = {}) {
               click: item => send({action:"panel", value:item.checked}) },
             { label: t("usageLimits"), visible:state?.limitsAvailable === true, type: "checkbox", checked: settings.limitsPanelOpen === true,
               click: item => send({action:"limits", value:item.checked}) },
-            { label: t("petSettings"), click: () => send({action:"settings"}) },
             { type: "separator" },
-            { label: t("showConsole"), visible:Boolean(process.env.AGENT_CONSOLE_PET_PYTHON), click: () => {
-                openConsole().catch(() => send({action:"error", message:t("openConsoleAgain")}));
-              }},
+            { label: t("quickSettings"), click: () => send({action:"settings"}) },
+            { label: t("allSettings"), click: () => send({action:"preferences"}) },
             { type: "separator" },
             { label: t("hideApp"), click: () => win.hide() },
-            { label: t("quitApp"), click: () => electron_1.app.quit() },
         ]);
         win.setIgnoreMouseEvents(false);
         await new Promise(resolve => menu.popup({window:win, callback:resolve}));

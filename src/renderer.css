@@ -701,3 +701,8 @@ button:focus-visible, [role=button]:focus-visible { outline: 2px solid #abcaff; 
   border-radius: 0 0 19px 19px; pointer-events: none;
 }
 .departing-tasks .session-item { position: absolute; background: #26211f; }
+#preferencesStore[hidden] {display:none}
+#settingsPopover {height:272px;background:#2b2521;color:#fff3e9;border:1px solid #977457}
+#settingsPopover .settings-content {padding:8px 0}
+#settingsPopover .pet-heading h2 {font-size:17px}
+#allSettings {width:100%;margin-top:12px}

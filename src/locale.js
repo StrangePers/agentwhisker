@@ -8,6 +8,13 @@
   const languages = Object.freeze({ en: "English", es: "Español", "zh-CN": "简体中文", hi: "हिन्दी" });
   // Each message follows the language order above. Placeholders are shared across translations.
   const messages = {
+    diagnostics:["Connection details","Detalles de conexión","连接详情","कनेक्शन का विवरण"],
+    quickSettings:["Quick settings","Ajustes rápidos","快捷设置","त्वरित सेटिंग"],
+    allSettings:["All settings…","Todos los ajustes…","所有设置…","सभी सेटिंग…"],
+    appearance:["Appearance","Apariencia","外观","दिखावट"],
+    agents:["Agents","Agentes","智能体","एजेंट"],
+    notifications:["Notifications","Notificaciones","通知","सूचनाएँ"],
+    about:["About","Acerca de","关于","परिचय"],
     trackAgents:["Track agents","Seguir agentes","跟踪代理","एजेंट चुनें"],
     recentlyCompleted:["Recently completed","Finalizadas recientemente","最近完成","हाल ही में पूरे हुए"],
     openProjectFolder:["Open project folder","Abrir carpeta del proyecto","打开项目文件夹","प्रोजेक्ट फ़ोल्डर खोलें"],
