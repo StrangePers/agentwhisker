@@ -96,3 +96,8 @@ code { color: var(--orange); overflow-wrap: anywhere; }
   .header { flex-wrap: wrap; }
   .header nav { width: 100%; justify-content: space-between; }
 }
+
+.settings-previews { display:flex; flex-wrap:wrap; align-items:flex-start; gap:1.5rem; margin:2rem 0; }
+.settings-previews figure { flex:1 1 16rem; margin:0; }
+.settings-previews img { display:block; max-width:100%; height:auto; max-height:24rem; }
+.settings-previews figcaption { margin-top:.5rem; }

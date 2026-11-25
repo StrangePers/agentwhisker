@@ -1,7 +1,7 @@
 {
   "name": "agentwhisker",
   "productName": "AgentWhisker",
-  "version": "0.1.12-preview.1",
+  "version": "0.1.12",
   "private": true,
   "description": "Animated desktop companion for coding agents in English, Spanish, Simplified Chinese, and Hindi",
   "main": "src/main.js",

@@ -2,7 +2,9 @@
 
 // English, Spanish, Simplified Chinese, Hindi.
 const siteCopy = {
-  windowsLatest: ["In v0.1.11, Kitsu eases into her next pose, the counter rolls up or down, and the open task list grows or shrinks as tasks arrive and finish.", "En v0.1.11, Kitsu cambia de postura suavemente, las cifras del contador suben o bajan y la lista abierta se ajusta cuando llegan o terminan tareas.", "在 v0.1.11 中，Kitsu 会平滑切换姿势，计数器的数字会上下滚动，展开的任务列表也会随任务的加入或完成而伸缩。", "v0.1.11 में Kitsu धीरे से मुद्रा बदलती है। गिनती बदलने पर अंक ऊपर या नीचे सरकते हैं और काम शुरू या पूरा होने पर खुली सूची का आकार बदलता है।"],
+  quickPreview: ["Quick settings","Ajustes rápidos","快捷设置","त्वरित सेटिंग"],
+  fullPreview: ["All settings","Todos los ajustes","全部设置","सभी सेटिंग"],
+  windowsLatest: ["In v0.1.12, use the gear beside Kitsu to adjust size and idle animation. Open All settings to choose agents, manage notifications, or check the installed version.", "En v0.1.12, usa el engranaje junto a Kitsu para ajustar su tamaño y animación en reposo. Abre los ajustes completos para elegir agentes, configurar notificaciones o consultar la versión instalada.", "在 v0.1.12 中，点击 Kitsu 旁的齿轮即可调整大小和空闲动画。打开完整设置可选择智能体、管理通知或查看已安装的版本。", "v0.1.12 में Kitsu के पास बने गियर से उसका आकार और खाली समय का ऐनिमेशन बदलें। एजेंट चुनने, सूचनाएँ सेट करने या इंस्टॉल किया गया संस्करण देखने के लिए सभी सेटिंग खोलें।"],
   poseDemo: ["Watch Kitsu and the counter", "Ver a Kitsu y el contador", "观看姿势和计数变化", "Kitsu और गिनती का बदलाव देखें"],
   listDemo: ["Watch the task list resize", "Ver cómo cambia la lista", "观看任务列表伸缩", "सूची का आकार बदलते देखें"],
   windowsMultiAgent: ["Expand Recently completed to see finished tasks. Independent Codex chats count separately, including forked chats.", "Abre el apartado de tareas finalizadas recientemente para verlas. Los chats independientes de Codex se cuentan por separado, incluidas las bifurcaciones.", "展开「最近完成」可查看已结束的任务。独立的 Codex 对话（包括分支对话）分别计数。", "पूरे हुए कार्य देखने के लिए हाल ही में पूरे हुए कार्यों का अनुभाग खोलें। स्वतंत्र Codex चैट और उनकी अलग शाखाओं की गिनती अलग होती है।"],

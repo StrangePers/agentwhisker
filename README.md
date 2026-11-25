@@ -21,7 +21,7 @@ Codex tracking also recognizes a forked chat whose journal begins with its paren
 
 ![Kitsu’s four animations shown side by side: idle, running, waiting for a decision, and error](docs/media/kitsu-states.gif)
 
-**New in v0.1.11 for Windows.** Kitsu eases into her next pose as the task count rolls up or down. Open the bubble to see new tasks slide into place. When a task finishes, its row fades and the panel shrinks around the remaining work. The transitions respect the system’s reduced-motion preference.
+**New in v0.1.12 for Windows.** Open the gear beside Kitsu to change her size, idle animation, or task bubble. Open **All settings** for agent selection, appearance, notifications, and the installed version. Kitsu keeps her position when you open settings or restart on a scaled Windows display.
 
 [Watch the pose and counter transitions](docs/media/pose-and-counter.mp4) · [Watch the task list grow and shrink](docs/media/task-list.mp4)
 
@@ -37,14 +37,16 @@ Codex tracking also recognizes a forked chat whose journal begins with its paren
 
 1. Download the portable **Windows x64** ZIP from [GitHub Releases](../../releases).
 2. Extract the whole archive and open **AgentWhisker.exe**.
-3. On first launch, click your agent in Kitsu’s settings. Start a session to see her respond. You can also choose a source manually or keep Kitsu on your desktop. Open the gear menu to change the source later.
+3. On first launch, click your agent in Kitsu’s settings. Start a session to see her respond. You can also choose a source manually or keep Kitsu on your desktop. To change sources later, open **All settings → Agents**.
 
-The tray menu shows, hides, or quits AgentWhisker. **Idle animation** runs continuously by default. Switch it to **Only on events** to keep Kitsu still between tasks. The free download includes Kitsu. Additional characters can be imported from a `.whiskerpack` file in settings.
+The tray menu shows Kitsu, opens all settings, or quits AgentWhisker. **Idle animation** runs continuously by default. Switch it to **Only on events** to keep Kitsu still between tasks. The free download includes Kitsu. Additional characters can be imported from a `.whiskerpack` file in settings.
 
 <details>
-<summary>See the language and animation settings</summary>
+<summary>Preview quick settings and the full settings window</summary>
 
-![AgentWhisker settings with the idle animation and language options](docs/media/settings-preview.jpg?v=0.1.1)
+| Quick settings | All settings |
+| --- | --- |
+| ![Size and idle controls](docs/media/quick-settings.png) | ![Appearance in the standalone settings window](docs/media/full-settings.png) |
 
 </details>
 
