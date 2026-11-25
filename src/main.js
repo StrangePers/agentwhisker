@@ -193,7 +193,7 @@ async function createWindow(args) {
     const readSnapshot = managedFile ? () => limits_window.readLimitsSnapshot(electron_1.app.getPath("userData"))
         : () => nativeLimits.get(limitsProvider)?.read() || null;
     limitsWindows.set(win, limits_window.createLimitsWindow(win, electron_1.screen, startWithLimits,
-        patch => (0, settings_1.updateSettings)(settingsPath, patch), {petSize:effectiveSettings.petSize, readSnapshot,
+        patch => (0, settings_1.updateSettings)(settingsPath, patch), {savedBounds:settings.windowBounds, petSize:effectiveSettings.petSize, readSnapshot,
         setSource: value => { limitsProvider = value; }, onRefresh:() => {
             if (!managedFile) return nativeLimits.get(limitsProvider)?.refresh() === true;
             if (!limitsBridge || limitsBridge.exitCode !== null || limitsBridge.stdin.destroyed || !limitsBridge.stdin.writable)

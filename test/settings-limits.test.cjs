@@ -2,7 +2,7 @@
 
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { calculateLayout } = require("../src/main/limits-window.cjs");
+const { calculateLayout, createLimitsWindow } = require("../src/main/limits-window.cjs");
 const { normalizeQuota, createCodexLimits } = require("../src/main/providers/codex-limits.cjs");
 const { normalizeSettings } = require("../src/main/settings");
 const { normalizeGoLimits } = require("../src/main/providers/opencode-limits.cjs");
@@ -72,4 +72,22 @@ test("OpenCode Go maps each allowance and respects the server's limiting state",
   ]);
   assert.equal(windows[0].resets_at,new Date(future).toISOString());
   assert.deepEqual(normalizeGoLimits(null),[]);
+});
+
+test("cold startup preserves compact bounds after Windows scales the native frame", async () => {
+  const saved = {x:1370, y:-407, width:1501, height:1392};
+  let frame = {...saved, width:1504, height:1396};
+  const win = {
+    getBounds: () => ({...frame}),
+    setBounds: bounds => { frame = {...bounds}; },
+    setMinimumSize() {}, on() {}, webContents: {send() {}},
+  };
+  const screen = {getDisplayMatching: () => ({workArea:{x:0, y:0, width:2560, height:1392}})};
+  let persisted;
+  const controller = createLimitsWindow(win, screen, false, patch => { persisted = patch; },
+    {savedBounds:saved, petSize:196});
+  assert.deepEqual(controller.getBaseBounds(), saved);
+  assert.deepEqual(frame, calculateLayout(saved, true, screen.getDisplayMatching().workArea, 196).bounds);
+  await controller.setOpen(true);
+  assert.deepEqual(persisted.windowBounds, saved);
 });

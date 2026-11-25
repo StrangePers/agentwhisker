@@ -59,7 +59,12 @@ function calculateLayout(base, open, area, petSize = 112, settingsOpen = false) 
 
 function createLimitsWindow(win, screen, initialOpen, persist, options = {}) {
     const petSize = Number.isFinite(options.petSize) ? options.petSize : 112;
+    // The native frame can already be several DIP larger at fractional DPI.
+    // Restore the saved compact rectangle before reserving space for panels.
     let base = win.getBounds();
+    for (const key of ["x", "y", "width", "height"]) {
+        if (Number.isFinite(options.savedBounds?.[key])) base[key] = options.savedBounds[key];
+    }
     let open = initialOpen === true;
     let settingsOpen = false;
     let layout;
