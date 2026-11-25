@@ -454,18 +454,22 @@ button:focus-visible, [role=button]:focus-visible { outline: 2px solid #abcaff; 
 #petActions .arc-button svg { width: 19px; height: 19px; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 #petActions .arc-button:is(:hover, [aria-expanded="true"]) { background: #514038; color: white; }
 #petActions .arc-button:focus-visible { outline: 2px solid white; outline-offset: 3px; }
-#petActions .thought-button {
-  width: 40px; height: 30px; border-radius: 52% 48% 46% 49%;
-  background: #ffead0; border-color: #8b6048; color: #453025;
+#petActions .thought-button, #petActions .thought-button:is(:hover,[aria-expanded="true"]) {
+  width: 40px; height: 30px; border: 0; box-shadow: none; background: transparent; color: #453025;
   font: 700 15px/1 "Segoe UI", sans-serif; font-variant-numeric: tabular-nums;
 }
-#petActions .thought-button:is(:hover,[aria-expanded="true"]) { background: #fff5e9; color: #38271f; }
-.thought-button::before, .thought-button::after {
-  content: ""; position: absolute; border-radius: 50%; background: #ffead0;
-  border: 1px solid #8b6048; pointer-events: none;
+.thought-face {
+  position: absolute; inset: -8px -8px -10px; pointer-events: none;
+  background: url("./assets/thought.png") center / 100% 100% no-repeat;
 }
-.thought-button::before { width: 6px; height: 5px; top: var(--near-y); left: var(--near-x); transform: translate(-50%, -50%); }
-.thought-button::after { width: 3px; height: 3px; top: var(--far-y); left: var(--far-x); transform: translate(-50%, -50%); }
+#threadBadge:is(:hover,[aria-expanded="true"]) .thought-face { background-image: url("./assets/thought-hover.png"); }
+#badgeNumber { position: relative; }
+.thought-button::before, .thought-button::after {
+  content: ""; position: absolute; pointer-events: none; transform: translate(-50%, -50%);
+  background-size: 100% 100%;
+}
+.thought-button::before { width: 8px; height: 7px; top: var(--near-y); left: var(--near-x); background-image: url("./assets/thought-near.png"); }
+.thought-button::after { width: 5px; height: 5px; top: var(--far-y); left: var(--far-x); background-image: url("./assets/thought-far.png"); }
 #petActions .arc-button[hidden] { display: none; }
 #app.activity-open #threadBadge { visibility: hidden; opacity: 0; pointer-events: none; transition: none; }
 #app.activity-open .current-task { visibility: hidden; }
@@ -560,16 +564,13 @@ button:focus-visible, [role=button]:focus-visible { outline: 2px solid #abcaff; 
   position: absolute;
   inset: 0 22.2222222222%;
   pointer-events: none;
-  background: url('./kitsu-idle-packed-hd.png') var(--idle-hd-position) / 1200% 1000% no-repeat;
+  background: var(--idle-strip-image) var(--idle-hd-position) / 400% 100% no-repeat;
 }
 #pet.kitsu-typing {
   background: transparent url('./kitsu-typing-rest-hd.png') center / 100% 100% no-repeat !important;
 }
 #pet.kitsu-typing.typing-sd-ready {
   background: transparent url('./kitsu-typing.webp') var(--typing-hd-position) / 1600% 1400% no-repeat !important;
-}
-#pet.kitsu-typing.typing-hd-ready {
-  background: transparent url('./kitsu-typing-hd.webp') var(--typing-hd-position) / 1600% 1400% no-repeat !important;
 }
 #pet.kitsu-typing.typing-strip-ready {
   background: transparent var(--typing-strip-image) var(--typing-strip-position) / 400% 100% no-repeat !important;
@@ -685,3 +686,18 @@ button:focus-visible, [role=button]:focus-visible { outline: 2px solid #abcaff; 
   outline: 2px solid #ecad77;
   outline-offset: -4px;
 }
+
+#badgeNumber, #taskCount {
+  position: relative; display: inline-grid; overflow: clip; vertical-align: bottom;
+  font-variant-numeric: tabular-nums;
+}
+#badgeNumber > span, #taskCount > span { grid-area: 1 / 1; white-space: nowrap; }
+.count-outgoing { pointer-events: none; }
+.count-outgoing::before { content: attr(data-label); }
+#previousPose { position: absolute; pointer-events: none; }
+
+.departing-tasks {
+  position: absolute; left: 0; right: 0; bottom: 0; overflow: clip;
+  border-radius: 0 0 19px 19px; pointer-events: none;
+}
+.departing-tasks .session-item { position: absolute; background: #26211f; }

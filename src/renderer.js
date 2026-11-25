@@ -130,8 +130,45 @@ function animationForState(state) {
 }
 
 function setState(state) {
+  if (["review", "unknown", "stale"].includes(state)) state = "idle";
   if (state === currentState) return;
   startAnimation(state);
+}
+
+// Freeze the displayed atlas cell, including the packed HD pseudo-element.
+let incomingPose = null;
+function blendPoses(state) {
+  const box = layoutRectInApp(petElement);
+  const old = document.createElement("div");
+  old.id = "previousPose";
+  old.setAttribute("aria-hidden", "true");
+  old.inert = true;
+  const style = getComputedStyle(petElement);
+  Object.assign(old.style, {
+    left: box.left + "px", top: box.top + "px", width: box.width + "px", height: box.height + "px",
+    background: style.background, imageRendering: style.imageRendering, filter: style.filter,
+  });
+  const packed = getComputedStyle(petElement, "::before");
+  if (packed.content !== "none" && packed.backgroundImage !== "none") {
+    const layer = document.createElement("div");
+    Object.assign(layer.style, {position: "absolute", inset: packed.inset, background: packed.background});
+    old.append(layer);
+  }
+  petStage.after(old);
+  // Keep the incoming sprite's hit geometry fixed. Only the inert outgoing
+  // image moves, with its feet anchored as it yields to the new silhouette.
+  const settle = state === "running" ? "translateY(3%) scale(.97,.92)" : "translateY(-2%) scale(.98,1.02)";
+  const timing = {duration: 420, easing: "ease-in-out"};
+  old.style.transformOrigin = "center bottom";
+  const fade = old.animate([
+    {opacity: 1, transform: "none"},
+    {opacity: .56, transform: settle, offset: .50},
+    {opacity: 0, transform: settle},
+  ], {...timing, id: "pose-out"});
+  incomingPose = petElement.animate([
+    {opacity: 0}, {opacity: .10, offset: .24}, {opacity: .68, offset: .58}, {opacity: 1},
+  ], {...timing, id: "pose-in"});
+  fade.onfinish = fade.oncancel = () => old.remove();
 }
 
 function finishPreview(atCycleEnd = false) {
@@ -188,7 +225,6 @@ let shapeRequest = 0;
 let displayedCell = 0;
 let spriteScale = 1;
 
-const TYPING_HD_CELL_WIDTH = 384;
 const TYPING_STRIP_FRAMES = 4;
 
 function typingDeviceCellWidth() {
@@ -228,7 +264,7 @@ async function updatePetShape(state) {
 
 function fitPetShape() {
   if (!shape) {
-    hideDownscaledTypingAtlas();
+    hideDownscaledTypingStrip();
     return;
   }
   // Match painted area to the original Wisp's idle pose at the same setting.
@@ -245,12 +281,12 @@ function fitPetShape() {
   style.setProperty("--cell-width", 192 * spriteScale + "px");
   style.setProperty("--cell-x", -shape.left * spriteScale + "px");
   style.setProperty("--cell-y", -shape.top * spriteScale + "px");
-  hideDownscaledTypingAtlas();
+  hideDownscaledTypingStrip();
 }
 
-function hideDownscaledTypingAtlas() {
-  if (petElement.classList.contains("typing-hd-ready") && typingDeviceCellWidth() <= TYPING_HD_CELL_WIDTH) {
-    petElement.classList.remove("typing-hd-ready");
+function hideDownscaledTypingStrip() {
+  if (petElement.classList.contains("typing-strip-ready") && typingDeviceCellWidth() <= 192) {
+    petElement.classList.remove("typing-strip-ready");
     // The HD rest image is frame zero. Match its hit mask before resize paints.
     displayedCell = 0;
   }
@@ -277,25 +313,62 @@ function* idleGestures() {
   }
 }
 
+// Keep only the first two HD strips across runs; later strips remain local to the pose.
+const typingOpening = new Map();
+function prepareTyping() {
+  if (selectedPetId !== "kitsu") return;
+  void window.AgentWhiskerGeometry.load(JSON.stringify(["kitsu", "running"]), "./kitsu-typing.webp", 16, 0, 216).catch(console.warn);
+  if ((window.devicePixelRatio || 1) * petSize > 192) {
+    loadStrip(typingOpening, "typing", 0);
+    loadStrip(typingOpening, "typing", 1);
+  }
+}
+
+function loadStrip(strips, pose, number) {
+  const existing = strips.get(number);
+  if (existing && (existing.pending || existing.image || performance.now() < existing.retryAfter)) return existing;
+  const asset = { image: null, pending: true, retryAfter: 0 };
+  strips.set(number, asset);
+  const image = new Image();
+  image.src = `./kitsu-${pose}-hd-strips/${String(number).padStart(2, "0")}.png`;
+  image.decode().then(() => {
+    asset.image = image;
+  }, () => {
+    asset.retryAfter = performance.now() + 2000;
+  }).finally(() => { asset.pending = false; });
+  return asset;
+}
+
 function startKitsuIdle() {
+  const strips = new Map();
   const gestures = idleGestures();
   let gesture = gestures.next().value;
   let index = 0;
   let completedCycle = false;
   const tick = () => {
-    if (petStage.classList.contains("hd") && !packedHD.idle.image) {
-      warmPackedHD("idle");
-      showCell(0);
-      timer = window.setTimeout(tick, 50);
-      return;
-    }
-    if (previewFrame()) return;
-    petElement.classList.toggle("idle-hd-ready", Boolean(packedHD.idle.image));
-    // Only the differing section of each 72-frame cycle is stored again.
+    if (previewState && previewFrames === 0 && finishPreview(true)) return;
     const cell = gesture && index >= 18 && index < 34
       ? 72 + (gesture - 1) * 16 + index - 18 : index;
+    const hd = petStage.classList.contains("hd");
+    if (hd) {
+      const number = Math.floor(cell / 4);
+      const nextIndex = (index + 1) % 72;
+      const nextCell = gesture && nextIndex >= 18 && nextIndex < 34
+        ? 72 + (gesture - 1) * 16 + nextIndex - 18 : nextIndex;
+      const next = cell % 4 === 3 || nextCell !== cell + 1 ? Math.floor(nextCell / 4) : Math.min(number + 1, 29);
+      for (const key of strips.keys()) if (key !== number && key !== next) strips.delete(key);
+      const strip = loadStrip(strips, "idle", number);
+      loadStrip(strips, "idle", next);
+      if (!strip.image) {
+        timer = window.setTimeout(tick, Math.max(16, strip.retryAfter - performance.now()));
+        return;
+      }
+      petElement.style.setProperty("--idle-strip-image", `url("${strip.image.src}")`);
+      petElement.style.setProperty("--idle-hd-position", `${cell % 4 * 100 / 3}% 0`);
+    }
+    if (previewFrame()) return;
+    petElement.classList.toggle("idle-hd-ready", hd);
     petElement.style.backgroundPosition = `${(cell % 12) * 100 / 11}% ${Math.floor(cell / 12) * 100 / 9}%`;
-    petElement.style.setProperty("--idle-hd-position", petElement.style.backgroundPosition);
     showCell(cell);
     const idleSeam = index === 0 && completedCycle;
     if (++index === 72) {
@@ -316,22 +389,7 @@ function startKitsuTyping(shapeReady) {
   let index = 0;
   let stripStarted = false;
   let displayedStrip = null;
-  const strips = new Map();
-
-  function loadStrip(number) {
-    const existing = strips.get(number);
-    if (existing && (existing.pending || existing.image || performance.now() < existing.retryAfter)) return existing;
-    const asset = { image: null, pending: true, retryAfter: 0 };
-    strips.set(number, asset);
-    const image = new Image();
-    image.src = `./kitsu-typing-hd-strips/${String(number).padStart(2, "0")}.png`;
-    image.decode().then(() => {
-      asset.image = image;
-    }, () => {
-      asset.retryAfter = performance.now() + 2000;
-    }).finally(() => { asset.pending = false; });
-    return asset;
-  }
+  const strips = new Map(typingOpening);
 
   const tick = () => {
     if (previewState && previewFrames === 0) {
@@ -339,8 +397,7 @@ function startKitsuTyping(shapeReady) {
       return;
     }
     const width = typingDeviceCellWidth();
-    const useStrip = width > 192 && width <= TYPING_HD_CELL_WIDTH;
-    const useAtlas = width > TYPING_HD_CELL_WIDTH;
+    const useStrip = width > 192;
     const cell = phrase * 72 + index;
     const number = Math.floor(cell / TYPING_STRIP_FRAMES);
     let strip;
@@ -353,8 +410,8 @@ function startKitsuTyping(shapeReady) {
       for (const key of strips.keys()) {
         if (key !== number && key !== nextNumber) strips.delete(key);
       }
-      strip = loadStrip(number);
-      const nextStrip = nextNumber === null ? null : loadStrip(nextNumber);
+      strip = loadStrip(strips, "typing", number);
+      const nextStrip = nextNumber === null ? null : loadStrip(strips, "typing", nextNumber);
       let missing = strip.image ? null : strip;
       if (!missing && !stripStarted && nextStrip && !nextStrip.image) missing = nextStrip;
       if (missing) {
@@ -367,15 +424,9 @@ function startKitsuTyping(shapeReady) {
       strips.clear();
       stripStarted = false;
     }
-    if (useAtlas && !packedHD.typing.image) {
-      warmPackedHD("typing");
-      timer = window.setTimeout(tick, 50);
-      return;
-    }
     if (previewFrame()) return;
     petElement.classList.toggle("typing-strip-ready", useStrip);
-    petElement.classList.toggle("typing-hd-ready", useAtlas);
-    petElement.classList.toggle("typing-sd-ready", !useStrip && !useAtlas);
+    petElement.classList.toggle("typing-sd-ready", !useStrip);
     if (useStrip) {
       if (number !== displayedStrip) {
         petElement.style.setProperty("--typing-strip-image", `url("${strip.image.src}")`);
@@ -433,8 +484,6 @@ function* waitingGestures() {
 
 // Retain the decoded HD sheet across phrases and status changes.
 const packedHD = {
-  idle: {image: null, loading: false, retryAfter: 0},
-  typing: {image: null, loading: false, retryAfter: 0},
   waiting: {image: null, loading: false, retryAfter: 0},
   failed: {image: null, loading: false, retryAfter: 0},
 };
@@ -444,7 +493,7 @@ function warmPackedHD(state) {
   if (asset.image || asset.loading || performance.now() < asset.retryAfter) return;
   asset.loading = true;
   const image = new Image();
-  image.src = state === "typing" ? "./kitsu-typing-hd.webp" : `./kitsu-${state}-packed-hd.png`;
+  image.src = `./kitsu-${state}-packed-hd.png`;
   image.decode().then(() => { asset.image = image; }).catch(() => {
     asset.retryAfter = performance.now() + 2000;
   }).finally(() => { asset.loading = false; });
@@ -509,13 +558,19 @@ function startKitsuFailed() {
 
 function startAnimation(state) {
   if (state === "review" || state === "stale" || state === "unknown") state = "idle";
+  if (state !== currentState) {
+    incomingPose?.cancel();
+    document.querySelector("#previousPose")?.remove();
+    if (currentState && selectedPetId === "kitsu" && !reduceMotion.matches) blendPoses(state);
+  }
   if (timer !== null) window.clearTimeout(timer);
   timer = null;
   resumeIdle = null;
   pendingTypingStart = null;
   currentState = state;
-  petElement.classList.remove("idle-hd-ready", "typing-hd-ready", "typing-strip-ready", "typing-sd-ready",
+  petElement.classList.remove("idle-hd-ready", "typing-strip-ready", "typing-sd-ready",
     "waiting-hd-ready", "failed-hd-ready");
+  petElement.style.removeProperty("--idle-strip-image");
   petElement.style.removeProperty("--typing-strip-image");
   const typing = state === "running" && selectedPetId === "kitsu";
   petElement.classList.toggle("kitsu-typing", typing);
@@ -552,6 +607,7 @@ function applyPet(pet) {
   const kitsuChanged = (selectedPetId === "kitsu") !== (pet.id === "kitsu");
   petElement.style.backgroundImage = `url(${pet.spritesheetDataUrl})`;
   selectedPetId = pet.id;
+  if (pet.id === "kitsu") window.requestIdleCallback?.(prepareTyping);
   if (previewState) finishPreview();
   if (currentState === previousState && currentState !== null) {
     if (kitsuChanged && ["running", "idle", "waiting", "failed"].includes(currentState)) startAnimation(currentState);
@@ -701,11 +757,11 @@ function renderActivity(activity, offline = false) {
   appElement.classList.toggle("desktop-mode", isDesktop);
   threadBadge.hidden = isDesktop;
   if (isDesktop && popoverOpen) setPopoverOpen(false);
-  threadBadge.textContent = badgeCount > 99 ? "99+" : String(badgeCount);
+  updateCountText(document.getElementById("badgeNumber"), badgeCount > 99 ? "99+" : String(badgeCount), badgeCount);
   const countLabel = formatTaskCount(badgeCount);
   threadBadge.title = countLabel;
   threadBadge.setAttribute("aria-label", t("showNumberedTasks", { count: countLabel }));
-  taskCount.textContent = badgeCount ? countLabel : t("tasks");
+  updateCountText(taskCount, badgeCount ? countLabel : t("tasks"), badgeCount);
   taskScope.textContent = badgeCount && sessions.every(session => session.state === "running") ? t("inProgress") : "";
   const message = offline ? linkDown : sessions.every(s => s.state === "review")
     ? (activity.state === "failed" && active?.title || t("noTasks")) : "";
@@ -715,11 +771,37 @@ function renderActivity(activity, offline = false) {
   syncMousePassthrough();
 }
 
+function updateCountText(node, label, count) {
+  const previous = node.dataset.count;
+  node.dataset.count = String(count);
+  if (node.textContent === label) return;
+  const oldLabel = node.textContent;
+  if (previous === undefined || reduceMotion.matches) {
+    node.textContent = label;
+    return;
+  }
+  const incoming = document.createElement("span");
+  incoming.textContent = label;
+  const outgoing = document.createElement("span");
+  outgoing.className = "count-outgoing";
+  outgoing.dataset.label = oldLabel;
+  outgoing.setAttribute("aria-hidden", "true");
+  node.replaceChildren(incoming, outgoing);
+  const distance = count > Number(previous) ? 100 : -100;
+  const timing = {duration: 300, easing: "cubic-bezier(.35,0,.2,1)"};
+  incoming.animate([{transform: `translateY(${distance}%)`}, {transform: "none"}],
+    {...timing, id: "count-in"});
+  const exit = outgoing.animate([{transform: "none"}, {transform: `translateY(${-distance}%)`}],
+    {...timing, id: "count-out"});
+  exit.onfinish = exit.oncancel = () => outgoing.remove();
+}
+
 function renderTaskRows(sessions, source) {
   const rows = sessions.map(session => {
     const origin = session.origin || source;
     const folder = origin === "codex" && session.canOpenFolder;
     return {
+    key: JSON.stringify([origin, session.id, session.state === "review"]),
     id: folder ? session.sourceId || session.id : ["agent-console", "roleshuttle"].includes(origin) && /^[0-9a-f]{32}$/.test(session.sourceId) ? session.sourceId : source === "json-status" && isConsoleTask(session) ? session.id : "",
     folder,
     state: session.state,
@@ -730,7 +812,38 @@ function renderTaskRows(sessions, source) {
   const signature = JSON.stringify(rows);
   if (signature === renderedTaskRows) return;
   renderedTaskRows = signature;
-  const focusedId = sessionList.contains(document.activeElement) && document.activeElement.dataset.taskId;
+  const focusedId = threadBody.contains(document.activeElement) && document.activeElement.dataset.taskId;
+  const moveRows = popoverOpen && !reduceMotion.matches;
+  const rowPositions = new Map();
+  const rowTop = element => element.getBoundingClientRect().top - threadContent.getBoundingClientRect().top;
+  threadPopover.querySelector(".departing-tasks")?.remove();
+  if (moveRows) {
+    const nextKeys = new Set(rows.map(row => row.key));
+    const viewport = threadContent.getBoundingClientRect();
+    let departing;
+    for (const item of threadBody.querySelectorAll("li[data-key]")) {
+      const rect = item.getBoundingClientRect();
+      if (!rect.height) continue;
+      rowPositions.set(item.dataset.key, rect.top - viewport.top);
+      if (nextKeys.has(item.dataset.key) || rect.bottom <= viewport.top || rect.top >= viewport.bottom) continue;
+      if (!departing) {
+        departing = document.createElement("div");
+        departing.className = "departing-tasks";
+        departing.inert = true;
+        departing.setAttribute("aria-hidden", "true");
+        departing.style.top = threadContent.offsetTop + "px";
+        threadPopover.append(departing);
+        const exit = departing.animate([{opacity: 1}, {opacity: 0, transform: "translateY(-6px)"}],
+          {id: "task-exit", duration: 150, easing: "ease-in"});
+        exit.onfinish = exit.oncancel = () => departing.remove();
+      }
+      const copy = item.firstElementChild.cloneNode(true);
+      copy.style.top = (rect.top - viewport.top) + "px";
+      copy.style.left = (rect.left - viewport.left) + "px";
+      copy.style.width = rect.width + "px";
+      departing.append(copy);
+    }
+  }
   const scroll = threadContent.scrollTop;
   sessionList.replaceChildren();
   const completedList = document.getElementById("completedList");
@@ -739,6 +852,7 @@ function renderTaskRows(sessions, source) {
   let focusTarget = collapseTasks;
   for (const row of rows) {
     const item = document.createElement("li");
+    item.dataset.key = row.key;
     const entry = document.createElement(row.id ? "button" : "div");
     entry.className = "session-item";
     if (row.id) {
@@ -784,8 +898,20 @@ function renderTaskRows(sessions, source) {
     (row.state === "review" ? completedList : sessionList).append(item);
   }
   threadContent.scrollTop = scroll;
+  if (moveRows) {
+    for (const item of threadBody.querySelectorAll("li[data-key]")) {
+      if (!item.getClientRects().length) continue;
+      const before = rowPositions.get(item.dataset.key);
+      const dy = before === undefined ? 12 : before - rowTop(item);
+      if (!dy && before !== undefined) continue;
+      item.animate([{transform: `translateY(${dy}px)`, opacity: before === undefined ? 0 : 1},
+        {transform: "none", opacity: 1}], {id: "task-move", duration: 280, easing: "cubic-bezier(.35,0,.2,1)"});
+    }
+  }
   if (focusedId) focusTarget.focus({ preventScroll: true });
 }
+
+threadContent.addEventListener("scroll", () => threadPopover.querySelector(".departing-tasks")?.remove());
 
 document.getElementById("completedTasks").addEventListener("toggle", () => { if (popoverOpen) positionLimits(); });
 
@@ -1205,7 +1331,8 @@ function positionThreadPopover(petRect, anchors) {
   let top = visibleTop + availableAbove - height;
   let edge = "bottom";
 
-  if (availableAbove < Math.min(naturalHeight, 154) && Math.max(spaceLeft, spaceRight) >= 200) {
+  // Reserve room for the next rows so adding a task does not flip the panel sideways.
+  if (availableAbove < 154 && Math.max(spaceLeft, spaceRight) >= 200) {
     const onRight = spaceRight >= 200 && (spaceLeft < 200 || badgeOnRight);
     width = Math.min(342, Math.floor(onRight ? spaceRight : spaceLeft));
     threadPopover.style.width = `${width}px`;
@@ -1230,9 +1357,9 @@ function applyTaskPanelLayout(panel) {
   const previous = taskPanelLayout;
   taskPanelLayout = panel;
   const resize = previous && !reduceMotion.matches && panel.edge === previous.edge &&
-    panel.width === previous.width && panel.left === previous.left && panel.height !== previous.height;
+    panel.width === previous.width && (panel.height !== previous.height || taskPanelResize?.playState === "running");
   const unchanged = previous && Object.keys(panel).every(key => panel[key] === previous[key]);
-  const from = resize ? layoutRectInApp(threadPopover) : null;
+  const from = resize && !unchanged ? layoutRectInApp(threadPopover) : null;
   if (!unchanged || reduceMotion.matches) {
     taskPanelResize?.cancel();
     taskPanelResize = null;
@@ -1241,9 +1368,9 @@ function applyTaskPanelLayout(panel) {
   threadPopover.style.top = `${panel.top}px`;
   threadPopover.style.height = `${panel.height}px`;
   if (from) {
-    const frame = rect => ({top:`${rect.top}px`, height:`${rect.height}px`});
+    const frame = rect => ({left:`${rect.left}px`, top:`${rect.top}px`, height:`${rect.height}px`});
     taskPanelResize = threadPopover.animate([frame(from), frame(panel)], {
-      id: "thread-resize", duration: 180, easing: "cubic-bezier(.2,.75,.25,1)",
+      id: "thread-resize", duration: 320, easing: "cubic-bezier(.35,0,.2,1)",
     });
   }
 }

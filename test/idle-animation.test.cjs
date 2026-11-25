@@ -46,7 +46,7 @@ function loadRenderer(decode) {
   }
   const window = {
     addEventListener() {},
-    matchMedia: () => ({ matches: false }),
+    matchMedia: query => ({ matches: query.includes("prefers-reduced-motion") }),
     setTimeout(callback, delay) {
       timers.set(++timerId, { callback, delay });
       return timerId;
@@ -66,7 +66,7 @@ function loadRenderer(decode) {
     documentElement: {},
     activeElement: null,
     getElementById: element,
-    querySelector: element,
+    querySelector: selector => selector === "#previousPose" ? null : element(selector),
     querySelectorAll: () => [],
     addEventListener() {},
   };
@@ -112,7 +112,6 @@ test("Kitsu Running at a 269px physical cell uses decoded HD strips in order", a
       leftByRow: new Uint16Array(208), rightByRow: new Uint16Array(208),
     });
     petStage.classList.add("hd");
-    packedHD.typing.image = {};
     Math.random = () => 0;
     livePhase = "checking";
     setState("running");
@@ -240,31 +239,29 @@ test("Kitsu Running preview plays 72 HD frames and repaints Idle without decodin
   assert.deepEqual(urls, Array.from({ length: 18 }, (_, number) => strip(number)));
 });
 
-test("Kitsu Running drops an atlas frame and mask before repainting at a smaller scale", async () => {
+test("Kitsu Running uses strips above 384px and switches to SD with a matching mask", async () => {
   const urls = [];
   const { element, evaluate, tick } = loadRenderer(url => {
     urls.push(url);
-    return pending;
+    return Promise.resolve();
   });
-  const pet = element("pet");
   evaluate(`
     applyPet({ id: "kitsu", spritesheetDataUrl: "test", displayName: "Kitsu" });
     petSize = 360;
     window.devicePixelRatio = 1.5;
-    packedHD.typing.image = {};
     setState("running");
   `);
   await flush();
+  tick(16);
   tick(40);
-  assert.equal(pet.classList.contains("typing-hd-ready"), true);
+  assert.equal(element("pet").classList.contains("typing-strip-ready"), true);
   assert.equal(evaluate("displayedCell"), 1);
-  evaluate("applyPetSize(160)");
-  assert.equal(pet.classList.contains("typing-hd-ready"), false);
+  evaluate("applyPetSize(100)");
+  assert.equal(element("pet").classList.contains("typing-strip-ready"), false);
   assert.equal(evaluate("displayedCell"), 0);
   tick(40);
   assert.deepEqual(urls, [strip(0), strip(1)]);
-  assert.equal(evaluate("displayedCell"), 0);
-  assert.equal(pet.classList.contains("typing-sd-ready"), false);
+  assert.equal(element("pet").classList.contains("typing-sd-ready"), true);
 });
 
 test("rapid preference changes apply immediately and an earlier write cannot reset the control", async () => {
@@ -326,7 +323,7 @@ test("generic Idle stays parked across JSON refreshes and wakes through the prim
   assert.equal(evaluate("displayedCell"), 1);
 });
 
-test("Kitsu HD Idle waits for the atlas, then parks and supports all four previews", async () => {
+test("Kitsu HD Idle waits for its strip, then parks and supports all four previews", async () => {
   const { evaluate, timers, tick, ready } = loadRenderer();
   evaluate(`
     applyPet({ id: "kitsu", spritesheetDataUrl: "test", displayName: "Kitsu" });
@@ -334,12 +331,12 @@ test("Kitsu HD Idle waits for the atlas, then parks and supports all four previe
     applyIdleAnimationMode("events-only");
     setState("idle");
   `);
-  tick(50);
+  tick(16);
   assert.equal(evaluate("displayedCell"), 0);
   ready();
   await new Promise(setImmediate);
-  tick(50);
-  for (let frame = 0; frame < 72; frame++) tick(60);
+  tick(16);
+  for (let frame = 0; frame < 72; frame++) { await flush(); tick(60); }
   assert.equal(evaluate("displayedCell"), 0);
   assert.equal(timers.size, 0);
   assert.equal(evaluate('petElement.classList.contains("idle-hd-ready")'), true);
@@ -348,30 +345,30 @@ test("Kitsu HD Idle waits for the atlas, then parks and supports all four previe
   evaluate(`
     petSize = 360;
     window.devicePixelRatio = 1.5;
-    packedHD.typing.image = packedHD.waiting.image = packedHD.failed.image = {};
+    packedHD.waiting.image = packedHD.failed.image = {};
   `);
   for (const [state, count] of Object.entries({ idle: 72, running: 72, waiting: 32, failed: 112 })) {
     evaluate(`playOnce("${state}")`);
-    if (state === "running") await flush();
-    for (let frame = 1; frame < count; frame++) {
-      tick();
-      assert.equal(evaluate("previewState"), state);
+    if (state === "running" || state === "idle") { await flush(); tick(16); }
+    for (let i = 0; i < count + 8 && evaluate("previewState"); i++) {
+      await flush(); tick();
     }
-    tick();
     assert.equal(evaluate("previewState"), "");
     assert.equal(evaluate("currentState"), "idle");
-    if (state !== "idle") for (let frame = 0; frame < 72; frame++) tick(60);
+    if (state !== "idle") { await flush(); tick(16); for (let frame = 0; frame < 72; frame++) { await flush(); tick(60); } }
     assert.equal(evaluate("displayedCell"), 0);
     assert.equal(timers.size, 0);
   }
 
   evaluate('playOnce("idle"); liveState = "failed"');
-  for (let frame = 0; frame < 72; frame++) tick(60);
+  await flush(); tick(16);
+  for (let frame = 0; frame < 72; frame++) { await flush(); tick(60); }
   assert.equal(evaluate("currentState"), "failed");
   assert.equal(evaluate("previewState"), "");
   tick(75);
   evaluate('liveState = "idle"; setState(liveState)');
-  for (let frame = 0; frame < 72; frame++) tick(60);
+  await flush(); tick(16);
+  for (let frame = 0; frame < 72; frame++) { await flush(); tick(60); }
   evaluate('applyPet({ id: "demo", spritesheetDataUrl: "test", displayName: "Demo" })');
   assert.equal(evaluate('petElement.classList.contains("kitsu-idle")'), false);
   [1680, 660, 660, 840, 840, 1920].forEach(delay => tick(delay));

@@ -13,13 +13,17 @@ Kitsu rests when your agent is idle, types while it works, waits when a decision
 
 Connect **Codex, Claude Code, OpenCode, or Qwen Code** directly from the gear menu. [Connect your agent](#connect-codex-claude-code-opencode-or-qwen-code).
 
-On Windows, open **Source → Track agents** and check each agent you want Kitsu to follow. If you previously selected **Codex + OpenCode**, both stay selected. The bubble counts active tasks across your sources. Expand **Recently completed** to see finished work. In v0.1.10, its arrow lines up with the task status dots and the heading lines up with the task titles, whether the section is open or closed.
+On Windows, open **Source → Track agents** and check each agent you want Kitsu to follow. If you previously selected **Codex + OpenCode**, both stay selected. The bubble counts active tasks across your sources. Expand **Recently completed** to see finished work.
 
 Codex tracking also recognizes a forked chat whose journal begins with its parent’s metadata. When RoleShuttle-Hybrid reports a task ID, Kitsu can group workers in that task’s worktree under one entry. A separate Codex chat still adds one to the count.
 
 ## Meet Kitsu
 
 ![Kitsu’s four animations shown side by side: idle, running, waiting for a decision, and error](docs/media/kitsu-states.gif)
+
+**New in v0.1.11 for Windows.** Kitsu eases into her next pose as the task count rolls up or down. Open the bubble to see new tasks slide into place. When a task finishes, its row fades and the panel shrinks around the remaining work. The transitions respect the system’s reduced-motion preference.
+
+[Watch the pose and counter transitions](docs/media/pose-and-counter.mp4) · [Watch the task list grow and shrink](docs/media/task-list.mp4)
 
 ## Downloads and compatibility
 

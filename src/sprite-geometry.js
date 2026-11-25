@@ -50,9 +50,26 @@ window.AgentWhiskerGeometry = (() => {
       area: areas[Math.floor(areas.length / 2)]};
   }
 
+  // The bundled Kitsu sheets are immutable. Avoid scanning millions of alpha
+  // values on the renderer thread on the first transition to either pose.
+  async function bundledGeometry(pose, count) {
+    const response = await fetch(new URL(`./kitsu-${pose}-geometry.gz`, location.href));
+    if (!response.ok) throw Error("Missing bundled geometry");
+    const data = new Uint8Array(await new Response(response.body.pipeThrough(new DecompressionStream("gzip"))).arrayBuffer());
+    const start = data.indexOf(10) + 1;
+    const stride = width * height / 8;
+    if (!start || data.length !== start + stride * count) throw Error("Invalid bundled geometry");
+    const shape = JSON.parse(new TextDecoder().decode(data.subarray(0, start - 1)));
+    shape.masks = new Map();
+    for (let i = 0; i < count; i++) shape.masks.set(i, data.subarray(start + i * stride, start + (i + 1) * stride));
+    return shape;
+  }
+
   function load(key, url, columns, first, count) {
     if (!animations.has(key)) {
-      const pending = measure(url, columns, first, count).catch(error => {
+      const pose = url === "./kitsu-idle.webp" ? "idle" : url === "./kitsu-typing.webp" ? "running" : null;
+      const read = () => measure(url, columns, first, count);
+      const pending = (pose ? bundledGeometry(pose, count).catch(read) : read()).catch(error => {
         animations.delete(key);
         throw error;
       });
