@@ -21,7 +21,7 @@ Codex tracking also recognizes a forked chat whose journal begins with its paren
 
 ![Kitsu’s four animations shown side by side: idle, running, waiting for a decision, and error](docs/media/kitsu-states.gif)
 
-**New in v0.1.12 for Windows.** Open the gear beside Kitsu to change her size, idle animation, or task bubble. Open **All settings** for agent selection, appearance, notifications, and the installed version. Kitsu keeps her position when you open settings or restart on a scaled Windows display.
+**Windows settings.** Open the gear beside Kitsu to change her size, idle animation, or task bubble. Open **All settings** for agent selection, appearance, notifications, and the installed version. Kitsu keeps her position when you open settings or restart on a scaled Windows display.
 
 [Watch the pose and counter transitions](docs/media/pose-and-counter.mp4) · [Watch the task list grow and shrink](docs/media/task-list.mp4)
 
@@ -30,12 +30,13 @@ Codex tracking also recognizes a forked chat whose journal begins with its paren
 | Platform | Channel | Download or build |
 |---|---|---|
 | Windows x64 | Stable | [Portable ZIP from GitHub Releases](../../releases/latest) |
+| Windows x64 | Preview | [Portable ZIP for v0.1.13-preview.2](https://github.com/StrangePers/agentwhisker/releases/tag/v0.1.13-preview.2) |
 | Linux x64 with X11 | Preview | [`tar.gz` from GitHub Releases](../../releases/tag/v0.1.3-preview.1) |
 | macOS on Apple Silicon | Preview | [ZIP containing the `.app` from GitHub Releases](../../releases/tag/v0.1.3-preview.1) |
 
 ### Get started on Windows
 
-1. Download the portable **Windows x64** ZIP from [GitHub Releases](../../releases).
+1. Download the portable **Windows x64** ZIP from the [stable release](../../releases/latest) or the [preview release](https://github.com/StrangePers/agentwhisker/releases/tag/v0.1.13-preview.2).
 2. Extract the whole archive and open **AgentWhisker.exe**.
 3. On first launch, click your agent in Kitsu’s settings. Start a session to see her respond. You can also choose a source manually or keep Kitsu on your desktop. To change sources later, open **All settings → Agents**.
 
@@ -95,7 +96,7 @@ AgentWhisker starts in standalone mode. Pick a JSON status file in settings or p
 
 A status file can contain `{"state":"running","title":"Building the project"}`. Use `idle`, `running`, `waiting`, or `failed` to set Kitsu’s pose. `review` marks a finished task as Done while Kitsu returns to Idle. Unrecognized and expired statuses use the Idle pose and show an explanation in the task list. For a standalone status file, refresh active entries at least every five minutes while they are current. AgentWhisker uses `updatedAt` when provided and the file modification time otherwise.
 
-With [RoleShuttle](https://github.com/StrangePers/RoleShuttle), your chat can delegate work to an implementer and a reviewer while Kitsu shows the current task state on your desktop. Run `roleshuttle companion --state running` and select the JSON path it prints in AgentWhisker’s settings. When the chat needs your answer, the controller can write `--state waiting` to the same file. [Connection guide](https://github.com/StrangePers/RoleShuttle/blob/v0.1.0a14/docs/integrations.md#agentwhisker).
+With [RoleShuttle](https://github.com/StrangePers/RoleShuttle), your chat can delegate work to an implementer and a reviewer while Kitsu shows the current task state on your desktop. Run `roleshuttle companion --state running` and select the JSON path it prints in AgentWhisker’s settings. When the chat needs your answer, the controller can write `--state waiting` to the same file. [Connection guide](https://github.com/StrangePers/RoleShuttle/blob/v0.1.0a15%2Bgoclosewhisker.1/docs/integrations.md#agentwhisker).
 
 ## Build and test
 
