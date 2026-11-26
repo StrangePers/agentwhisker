@@ -726,7 +726,10 @@ function renderActivity(activity, offline = false) {
     activity.state === "stale" || activity.state === "unknown" ? activity.state :
     !activity.sessions?.length ? "startSession" : activity.state === "idle" ? "connectedIdle" : "";
   const messageNode = preferenceNode("sourceDiagnostic");
-  const messageText = showDiagnostic && diagnostic ? t(diagnostic) : "";
+  const sources = labelForSource(provider);
+  const unavailableSources = (activity.unavailable || []).map(labelForSource).join(", ");
+  const detail = showDiagnostic && diagnostic ? t(diagnostic) : "";
+  const messageText = [sources, detail, unavailableSources && (unavailableSources + " · " + t("sourceDown"))].filter(Boolean).join(" · ");
   if (messageNode.textContent !== messageText) messageNode.textContent = messageText;
   preferenceNode("retrySource").hidden = !showDiagnostic || !needsRetry;
   const other = (activity.sessions || []).filter(item => item.id !== active?.id && item.state === "running").length;
@@ -753,7 +756,7 @@ function renderActivity(activity, offline = false) {
   }
   const isDesktop = activity.source === "desktop";
   const sessions = offline || isDesktop ? [] : (activity.sessions || [])
-    .filter(session => session.state !== "idle" && (!managed || isConsoleTask(session)))
+    .filter(session => session.state !== "idle" && (!managed || isConsoleTask(session) || session.taskSource === "roleshuttle"))
     .sort((left, right) => Number(right.state === "waiting") - Number(left.state === "waiting") ||
       Number(isBadgeSession(right)) - Number(isBadgeSession(left)));
   const badgeCount = sessions.filter(isBadgeSession).length;
@@ -806,10 +809,14 @@ function renderTaskRows(sessions, source) {
   const rows = sessions.map(session => {
     const origin = session.origin || source;
     const folder = origin === "codex" && session.canOpenFolder;
+    const stage = session.taskSource === "roleshuttle" &&
+      /^rs-[0-9a-f]{32}$/.test(session.sourceId || session.id) &&
+      ["waiting", "review", "failed"].includes(session.state);
     return {
     key: JSON.stringify([origin, session.id, session.state === "review"]),
-    id: folder ? session.sourceId || session.id : ["agent-console", "roleshuttle"].includes(origin) && /^[0-9a-f]{32}$/.test(session.sourceId) ? session.sourceId : source === "json-status" && isConsoleTask(session) ? session.id : "",
+    id: folder || stage ? session.sourceId || session.id : ["agent-console", "roleshuttle"].includes(origin) && /^[0-9a-f]{32}$/.test(session.sourceId) ? session.sourceId : source === "json-status" && isConsoleTask(session) ? session.id : "",
     folder,
+    stage,
     state: session.state,
     title: displayTitle(session, origin),
     detail: session.origin ? labelForSource(origin) + " · " + t(session.state) : taskDetail(session, source),
@@ -875,6 +882,14 @@ function renderTaskRows(sessions, source) {
             error.textContent = t("folderUnavailable");
             await refreshActivity().catch(console.error);
           }
+        });
+      } else if (row.stage) {
+        entry.title = "RoleShuttle";
+        entry.addEventListener("click", async () => {
+          const error = document.getElementById("consoleError");
+          error.textContent = "";
+          try { await window.codexPets.openStageResult(row.id); }
+          catch { error.textContent = t("openConsoleAgain"); }
         });
       } else entry.addEventListener("click", () => openConsoleTask(row.id));
       if (row.id === focusedId) focusTarget = entry;
@@ -1259,7 +1274,7 @@ function setPopoverOpen(value, moveFocus = false) {
   syncMousePassthrough();
 }
 
-function openPreferences(section = "appearance") {
+function openPreferences(section) {
   setSettingsOpen(false);
   window.AgentWhiskerPreferences.open(section, t, locale, appVersion);
 }
@@ -1728,7 +1743,7 @@ function hasLimitValue(window) {
 }
 
 function updateLimitsAvailability() {
-  const available = Boolean(managedFile || nativeLimitsProviders.has(provider));
+  const available = Boolean(managedFile || selection.decode(provider).some(id => nativeLimitsProviders.has(id)));
   preferenceNode("limitsPreferenceRow").hidden = !available;
   limitsButton.hidden = !available || limitsPreference.value === "hidden";
   if (limitsButton.hidden && limitsOpen) void setLimitsOpen(false);
@@ -1757,13 +1772,15 @@ function renderLimits() {
   limitsRefreshButton.setAttribute('aria-busy', String(busy));
   host.setAttribute('aria-busy', String(busy));
   const failed = !busy && (!!limitsError || overdue || !!limitsValue?.error || progress?.state === 'error');
-  const unavailable = {
+  const reasonLabels = {
     codex_account:"limitsCodexSignIn", opencode_service:"limitsOpenCodeStart", opencode_go_account:"limitsOpenCodeSignIn",
     opencode_version:"limitsOpenCodeVersion",
-  }[limitsValue?.unavailable];
+  };
+  const unavailable = (limitsValue?.unavailableReasons || [limitsValue?.unavailable])
+    .map(reason => reasonLabels[reason]).filter(Boolean).map(key => t(key)).join(" ");
   const statusText = busy ? (hasSaved ? t("refreshingSaved") : t("refreshingLimits"))
     : failed ? t(hasSaved ? (overdue ? "refreshOverdue" : "refreshFailed") : "limitsLoadFailed")
-    : unavailable ? t(unavailable)
+    : unavailable ? unavailable
     : !limitsValue ? t("readLimits") : !hasSaved ? t("limitsPending") : '';
   if (message.textContent !== statusText) message.textContent = statusText;
   message.dataset.error = String(failed);

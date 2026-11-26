@@ -5,8 +5,8 @@ window.AgentWhiskerPreferences = (() => {
   let syncControls = () => {};
   function open(section, t, locale, version) {
     if (popup && !popup.closed) {
-      selectSection(section);
-      popup.focus();
+      if (section) selectSection(section);
+      void window.codexPets.focusPreferences();
       return;
     }
     const win = window.open("about:blank", "agentwhisker-preferences");
@@ -76,7 +76,7 @@ window.AgentWhiskerPreferences = (() => {
       syncControls();
     };
     selectSection(section);
-    buttons.get(section)?.focus();
+    buttons.get(buttons.has(section) ? section : "appearance").focus();
     win.addEventListener("keydown", event => { if (event.key === "Escape") win.close(); });
     win.addEventListener("pagehide", () => {
       quick.remove();

@@ -9,6 +9,7 @@ body.preferences-window {
 .preferences-window nav strong {display:block; margin:4px 8px 22px}
 .preferences-window button, .preferences-window select, .preferences-window input {font:inherit;color:inherit}
 .preferences-window button, .preferences-window select {padding:6px 10px;background:#39312d;border:1px solid #615146;border-radius:7px}
+.preferences-window select {height:auto;min-height:2.25em;line-height:1.4}
 .preferences-window button,.preferences-window summary {cursor:pointer}
 .preferences-window nav button {width:100%;text-align:start;background:none;border:0;margin:2px 0}
 .preferences-window nav button[aria-current=true], .preferences-window .skin-card[aria-pressed=true] {background:#514034;color:#ffd3aa}

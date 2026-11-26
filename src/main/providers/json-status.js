@@ -105,6 +105,7 @@ function normalizeItems(items, fallback, now, managed) {
         const detail = cleanString(item?.detail) || cleanString(item?.message) || fallback.detail;
         return {
             id: cleanString(item?.id) || `json-status-${index}`,
+            taskSource: item?.source === "roleshuttle" ? "roleshuttle" : undefined,
             title: cleanString(item?.title) || fallback.title,
             detail,
             state,

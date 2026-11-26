@@ -1,6 +1,7 @@
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const path = require("node:path");
 const {createCombinedReader} = require("../src/main/providers/combined.cjs");
 const snapshot = (state,id="same") => ({sessions:[{id,state,petState:state,updatedAt:new Date().toISOString()}]});
 test("identical native IDs remain separate; waiting takes priority and clearing it resumes running", async () => {
@@ -35,7 +36,7 @@ test("an exact RoleShuttle task worktree groups workers while an independent ses
     parent.sessions.push({...parent.sessions[0]});
     const worker = snapshot("running", "worker");
     worker.sessions[0].directory = "D:/state/tasks/" + task + "/worktree/subdir";
-    const independent = {...worker.sessions[0], id:"independent", directory:"D:/Projects/Knowledge"};
+    const independent = {...worker.sessions[0], id:"independent", directory:path.resolve("fixture-independent-checkout")};
     const read = createCombinedReader({
         roleshuttle: () => parent,
         codex: () => ({sessions:[...worker.sessions, independent]}),
@@ -56,7 +57,6 @@ test("agent checkboxes round-trip empty, legacy, single and arbitrary selections
 });
 
 test("Hybrid profile worktrees share one parent across bridges and preserve unrelated worktrees", async () => {
-    const path = require("node:path");
     const roleHome = path.resolve("test-hybrid-profile");
     const task = "0123456789abcdef".repeat(2);
     const stage = "rs-" + task;

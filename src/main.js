@@ -50,6 +50,7 @@ const { findCodexExecutable, createCodexLimits } = require("./main/providers/cod
 const { createOpenCodeLimits } = require("./main/providers/opencode-limits.cjs");
 const { listCharacters, importCharacter } = require("./main/character-library.cjs");
 const limitsWindows = new WeakMap();
+const preferencesWindows = new WeakMap();
 let appTray = null;
 const {loginSetting, coordinateStartup} = require("./main/windows-startup.cjs");
 const taskAlerts = require("./main/task-alerts.cjs").createTaskAlerts();
@@ -170,10 +171,13 @@ async function createWindow(args) {
             nodeIntegration: false,
         },
     });
+    win.webContents.on("did-create-window", (child, details) => {
+        if (details.frameName === "agentwhisker-preferences") preferencesWindows.set(win.webContents, child);
+    });
     win.webContents.setWindowOpenHandler(({url, frameName}) => {
         if (url !== "about:blank" || frameName !== "agentwhisker-preferences") return {action:"deny"};
         return {action:"allow", overrideBrowserWindowOptions:{
-            width:760, height:535, minWidth:540, minHeight:400, frame:true, transparent:false,
+            parent:win, width:760, height:535, minWidth:540, minHeight:400, frame:true, transparent:false,
             alwaysOnTop:false, skipTaskbar:false, resizable:true, autoHideMenuBar:true, hasShadow:true,
             backgroundColor:"#26211f", icon:path.join(__dirname,"assets","agentwhisker.ico"),
         }};
@@ -188,20 +192,23 @@ async function createWindow(args) {
         nativeLimits.set("opencode", createOpenCodeLimits());
     }
     let limitsProvider = effectiveSettings.provider;
+    const selectedLimits = () => require("./agent-selection").decode(limitsProvider)
+        .map(id => nativeLimits.get(id)).filter(Boolean);
+    const refreshNative = () => selectedLimits().map(source => source.refresh()).includes(true);
     const startWithLimits = effectiveSettings.limitsPanelOpen && effectiveSettings.limitsButtonVisibility !== "hidden" &&
-        Boolean(managedFile || nativeLimits.has(limitsProvider));
+        Boolean(managedFile || selectedLimits().length);
     const readSnapshot = managedFile ? () => limits_window.readLimitsSnapshot(electron_1.app.getPath("userData"))
-        : () => nativeLimits.get(limitsProvider)?.read() || null;
+        : () => require("./main/providers/limits-source.cjs").combineLimits(selectedLimits().map(source => source.read()));
     limitsWindows.set(win, limits_window.createLimitsWindow(win, electron_1.screen, startWithLimits,
         patch => (0, settings_1.updateSettings)(settingsPath, patch), {savedBounds:settings.windowBounds, petSize:effectiveSettings.petSize, readSnapshot,
         setSource: value => { limitsProvider = value; }, onRefresh:() => {
-            if (!managedFile) return nativeLimits.get(limitsProvider)?.refresh() === true;
+            if (!managedFile) return refreshNative();
             if (!limitsBridge || limitsBridge.exitCode !== null || limitsBridge.stdin.destroyed || !limitsBridge.stdin.writable)
                 return false;
             limitsBridge.stdin.write("R", () => {});
             return true;
         }}));
-    if (startWithLimits) nativeLimits.get(limitsProvider)?.refresh();
+    if (startWithLimits) refreshNative();
     wireTray(win);
     electron_1.app.on("second-instance", () => { win.show(); win.focus(); });
     const childProcess = require("node:child_process");
@@ -213,6 +220,16 @@ async function createWindow(args) {
         limitsBridge = bridge;
         bridge.stdin.on("error", () => {});
         electron_1.app.once("before-quit", () => { if (bridge.exitCode === null) bridge.stdin.end(); });
+    }
+    if (!python && process.env.AGENTWHISKER_STATUS_PUBLISHER) {
+        const publisher = childProcess.spawn(process.env.AGENTWHISKER_ARCHIVE_PYTHON,
+            ["-I", "-B", process.env.AGENTWHISKER_STATUS_PUBLISHER],
+            {windowsHide:true,stdio:["pipe","ignore","ignore"]});
+        publisher.on("error", () => {});
+        publisher.stdin.on("error", () => {});
+        electron_1.app.once("before-quit", () => {
+            if (publisher.exitCode === null) publisher.stdin.end();
+        });
     }
     const requestPath = path.join(electron_1.app.getPath("userData"), "stop-request");
     const showPath = path.join(electron_1.app.getPath("userData"), "show-request");
@@ -280,6 +297,21 @@ function openConsole(taskId) {
     if (taskId !== undefined && taskId !== null && !/^[0-9a-f]{32}$/.test(taskId)) {
         return Promise.reject(new Error("Invalid task ID"));
     }
+    const archivePython = process.env.AGENTWHISKER_ARCHIVE_PYTHON;
+    const archiveLauncher = process.env.AGENTWHISKER_ARCHIVE_LAUNCHER;
+    if (archiveLauncher) {
+        if (!archivePython || !path.isAbsolute(archivePython) || !path.isAbsolute(archiveLauncher)) {
+            return Promise.reject(new Error("RoleShuttle launcher is unavailable"));
+        }
+        const args = ["-I", "-B", archiveLauncher, taskId ? "archive-open" : "open"];
+        if (taskId) args.push(taskId);
+        return new Promise((resolve, reject) => {
+            require("node:child_process").execFile(archivePython, args, {windowsHide:true, timeout:35000}, error => {
+                if (error) reject(new Error("Could not open the RoleShuttle archive"));
+                else resolve();
+            });
+        });
+    }
     const python = process.env.AGENT_CONSOLE_PET_PYTHON;
     if (!python) return Promise.reject(new Error("Console runtime is unavailable"));
     const args = ["-B", "-P", "-m", "agent_console.pet_control", "open"];
@@ -292,6 +324,26 @@ function openConsole(taskId) {
     });
 }
 function registerIpcHandlers(startupArgs = {}) {
+    const roleShuttleFile = process.env.AGENTWHISKER_ROLESHUTTLE_STATUS_FILE
+        || path.join(require("node:os").homedir(), ".roleshuttle", "agentwhisker-status.json");
+    const {readStageResult, resultPage} = require("./main/stage-result.cjs");
+    electron_1.ipcMain.handle("stage:open-result", async (event, id) => {
+        const parent = electron_1.BrowserWindow.fromWebContents(event.sender);
+        if (!parent || !limitsWindows.has(parent)) throw new Error("Pet window unavailable");
+        const result = await readStageResult(roleShuttleFile, id);
+        if (parent.isDestroyed()) return;
+        const viewer = new electron_1.BrowserWindow({parent, width: 640, height: 460, show: false,
+            autoHideMenuBar: true, webPreferences: {sandbox: true, contextIsolation: true, nodeIntegration: false}});
+        viewer.webContents.setWindowOpenHandler(() => ({action: "deny"}));
+        viewer.webContents.on("will-navigate", event => event.preventDefault());
+        try {
+            await viewer.loadURL(resultPage("RoleShuttle", result));
+            if (!viewer.isDestroyed()) viewer.show();
+        } catch {
+            if (!viewer.isDestroyed()) viewer.destroy();
+            throw new Error("RoleShuttle result is unavailable");
+        }
+    });
     electron_1.ipcMain.handle("limits:read", async (event, ...args) => {
         if (args.length) throw new TypeError("readLimits accepts no arguments");
         return limitsForEvent(event).readSnapshot();
@@ -383,6 +435,14 @@ function registerIpcHandlers(startupArgs = {}) {
     });
     electron_1.ipcMain.handle("sources:discover", (_event, codexHome) =>
         require("./main/providers/discover.cjs").discoverSources(codexHome));
+    electron_1.ipcMain.handle("preferences:focus", event => {
+        const child = preferencesWindows.get(event.sender);
+        if (!child || child.isDestroyed()) return;
+        if (child.isMinimized()) child.restore();
+        child.show();
+        child.moveTop();
+        child.focus();
+    });
     electron_1.ipcMain.handle("settings:get", async () => (0, settings_1.readSettings)(path.join(electron_1.app.getPath("userData"), "settings.json")));
     electron_1.ipcMain.handle("settings:update", async (event, patch) => {
         if (patch && Object.hasOwn(patch, "provider")) limitsForEvent(event).setSource((0, providers_1.normalizeProvider)(patch.provider));

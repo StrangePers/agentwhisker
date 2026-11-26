@@ -38,6 +38,12 @@ async function run() {
     await full.getByRole("button",{name:t("agents"),exact:true}).click();
     assert.equal(await full.locator('#agentChoices input[value="agent-console"]').count(),0);
     assert.equal(await full.locator('#agentChoices input[value="roleshuttle"]').count(),1);
+    const nativePreferences = await app.browserWindow(full);
+    await nativePreferences.evaluate(win => win.minimize());
+    await app.evaluate((_,label) => globalThis.testMenu.items.find(i=>i.label===label).click(),t("allSettings"));
+    await full.waitForFunction(() => document.hasFocus());
+    assert.equal(await nativePreferences.evaluate(win => win.isMinimized()), false);
+    assert.equal(await full.locator("h1").innerText(), t("agents"));
     await app.evaluate(({Tray}) => {
       const assign = Tray.prototype.setContextMenu;
       Tray.prototype.setContextMenu = function(menu) {

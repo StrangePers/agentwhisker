@@ -21,10 +21,12 @@ electron_1.contextBridge.exposeInMainWorld("codexPets", {
         return () => electron_1.ipcRenderer.removeListener("console:command", listener);
     },
     openConsole: (taskId) => electron_1.ipcRenderer.invoke("console:open", taskId),
+    openStageResult: (id) => electron_1.ipcRenderer.invoke("stage:open-result", id),
     openProjectFolder: (id) => electron_1.ipcRenderer.invoke("project:open-folder", id),
     hidePet: () => electron_1.ipcRenderer.send("console:hide"),
     quitPet: () => electron_1.ipcRenderer.send("console:quit"),
     importPet: () => electron_1.ipcRenderer.invoke("pets:import"),
+    focusPreferences: () => electron_1.ipcRenderer.invoke("preferences:focus"),
     listPets: (codexHome) => electron_1.ipcRenderer.invoke("pets:list", codexHome),
     listProviders: () => electron_1.ipcRenderer.invoke("providers:list"),
     readActivity: (options) => electron_1.ipcRenderer.invoke("activity:read", options),
